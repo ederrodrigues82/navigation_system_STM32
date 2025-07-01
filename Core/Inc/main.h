@@ -53,13 +53,17 @@ extern "C" {
 void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
-
+void start_tim2(uint8_t channel);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/
+#define MOV_SIM_CHANNEL_B_Pin GPIO_PIN_14
+#define MOV_SIM_CHANNEL_B_GPIO_Port GPIOC
+#define MOV_SIM_CHANNEL_A_Pin GPIO_PIN_15
+#define MOV_SIM_CHANNEL_A_GPIO_Port GPIOC
 
 /* USER CODE BEGIN Private defines */
-
+#define NUM_CHANNELS 4
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus

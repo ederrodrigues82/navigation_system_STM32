@@ -1,8 +1,7 @@
-#define FORWARD             1
-#define BACKWARD            2
-#define STOP                0
-#define ROTATING_CLOCK      3
-#define ROTATING_COUNTER    4
+#ifndef __MOV_SIMULATOR_H
+#define __MOV_SIMULATOR_H
 
 void tick(void);
-int set_movement(int direction, int count);
+int set_simulate_movement(int direction, int count);
+
+#endif /* MOV_SIMULATOR_H */

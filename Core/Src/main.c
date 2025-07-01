@@ -25,6 +25,7 @@
 #include <stdio.h>
 #include <menu.h>
 #include <mov_simulator.h>
+#include <actuators.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -36,7 +37,6 @@
 /* USER CODE BEGIN PD */
 
 #define BNO080_BUFFER_SIZE 20 //buffer size of movement sensor
-#define NUM_CHANNELS 4
 #define BNO080_ADDR (0x4A << 1)  // = 0x94 ADDR pulled down
 #define FILTER_SIZE 10  // Filter used on accelerometer, you can adjust this value
 #define DT 100 // Period o accelerometer measure in miliseconds
@@ -72,9 +72,6 @@ typedef struct {
     float roll, pitch, yaw;
 } BNO080_Data_t;
 
-// Pulse counters and targets
-volatile uint32_t pulse_count[NUM_CHANNELS] = {0};
-volatile uint32_t target_count[NUM_CHANNELS] = {0};
 BNO080_Data_t bno080_data;
 
 /* USER CODE END PV */
@@ -93,7 +90,6 @@ static void BNO080_activate(void);
 static void UpdateVelocityPosition(float dt);
 static void BNO080_ParseInputReport(uint8_t *data);
 float FilteredAccel(float *buffer, float newValue);
-static void set_target_count(uint8_t channel, uint32_t target);
 float HighPassFilter(float current_input, float previous_output, float alpha);
 void QuaternionToEuler(float w, float x, float y, float z, float *roll, float *pitch, float *yaw);
 
@@ -257,6 +253,7 @@ static void MX_TIM2_Init(void)
 
   TIM_ClockConfigTypeDef sClockSourceConfig = {0};
   TIM_MasterConfigTypeDef sMasterConfig = {0};
+  TIM_IC_InitTypeDef sConfigIC = {0};
 
   /* USER CODE BEGIN TIM2_Init 1 */
 
@@ -276,19 +273,39 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
+  if (HAL_TIM_IC_Init(&htim2) != HAL_OK)
+  {
+    Error_Handler();
+  }
   sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
   sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
   if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
   {
     Error_Handler();
   }
+  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
+  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
+  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
+  sConfigIC.ICFilter = 0;
+  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_3) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_4) != HAL_OK)
+  {
+    Error_Handler();
+  }
   /* USER CODE BEGIN TIM2_Init 2 */
   HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
   HAL_NVIC_EnableIRQ(TIM2_IRQn);
-  set_target_count(1, 10); // set channel 2 to count 10 events
-  set_target_count(2, 10);
-  set_target_count(3, 10);
-  set_target_count(4, 10);
   /* USER CODE END TIM2_Init 2 */
 
 }
@@ -406,14 +423,20 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13|MOV_SIM_CHANNEL_B_Pin|MOV_SIM_CHANNEL_A_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pin : PC13 */
-  GPIO_InitStruct.Pin = GPIO_PIN_13;
+  /*Configure GPIO pins : PC13 MOV_SIM_CHANNEL_B_Pin MOV_SIM_CHANNEL_A_Pin */
+  GPIO_InitStruct.Pin = GPIO_PIN_13|MOV_SIM_CHANNEL_B_Pin|MOV_SIM_CHANNEL_A_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : PA4 PA5 */
+  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -432,33 +455,15 @@ void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
     }
 }
 
-//TIM2 IRQ Callback
-void TIM2_CC_IRQHandler(void)
-{
-	HAL_TIM_IC_CaptureCallback(&htim2);
-}
-
+// Handler for external events (encoders)
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-    uint8_t ch = 0xFF;
+//	printf("TIM2_IRQHandler\r\n");
+	measure_encoders(htim);
+}
 
-    if (htim->Instance == TIM2) {
-        if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) ch = 0;
-        else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) ch = 1;
-        else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3) ch = 2;
-        else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_4) ch = 3;
-
-        if (ch < NUM_CHANNELS) {
-            pulse_count[ch]++;
-
-            if (pulse_count[ch] >= target_count[ch]) {
-                // Reached target – stop capture or trigger action
-                HAL_TIM_IC_Stop_IT(&htim2, TIM_CHANNEL_2 + ch * 4);
-                // Call your completion handler or set a flag
-                //TODO add log message with what channel enable the interrupt caller
-            }
-        }
-    }
+void start_tim2(uint8_t channel) {
+	HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1 + channel * 4); // Start only that channel
 }
 
 void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
@@ -478,20 +483,10 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
         // Exemplo: eco do caractere recebido
         //HAL_UART_Transmit(&huart1, &rx_data, 1, HAL_MAX_DELAY);
         //printf("Receive data from Uart");
-        menu('0');
+        menu(rx_data);
 
         // Reinicia a recepção do próximo byte
         HAL_UART_Receive_IT(&huart1, &rx_data, 1);
-    }
-}
-
-//Set target count function
-static void set_target_count(uint8_t channel, uint32_t target) {
-    if (channel < NUM_CHANNELS) {
-        target_count[channel] = target;
-        pulse_count[channel] = 0;
-
-        HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2 + channel * 4); // Start only that channel
     }
 }
 

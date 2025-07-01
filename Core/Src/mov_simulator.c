@@ -2,77 +2,62 @@
 //Simulate the movement back and forward
 //Simulate the rotate movement
 
-#include <mov_simulator.h>
+
+#include <main.h>
 #include <stdio.h>
+#include <actuators.h>
 #include "stm32f1xx_hal.h"
+#include <mov_simulator.h>
 
-const char *direction_names[] = {
-    "STOP",             // 0
-    "FORWARD",          // 1
-    "BACKWARD",         // 2
-    "ROTATING_CLOCK",   // 3
-    "ROTATING_COUNTER"  // 4
-};
+#define CLOCK 0
+#define COUNTER_CLOCK 1
 
-char status = STOP;
+static uint8_t simulator_direction = STOP;
 
 volatile int count_right = 0;
 volatile int count_left = 0;
 volatile int limit_right = 0;
 volatile int limit_left = 0;
 
-int set_movement(int direction, int count)
+static void simulate_encoder_pulse(uint8_t direction);
+
+int set_simulate_movement(int direction, int count)
 {
-    status = direction;
-
-    printf("Current direction: %s\r\n", direction_names[direction]);
-
-    if (direction == STOP)
-    {
-
-    	HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, GPIO_PIN_RESET);
-        return 0;
-    }
-
-    count_right = 0;
-    count_left = 0;
-    limit_right = count;
-    limit_left = count;
-    printf("Moving %d pulses forward\r\n", count);
-    return 1;
-}
-
-static int update_movement(void)
-{
-    // Increment simulated encoder pulse counters
-    count_right++;
-    count_left++;
-
-    // Stop if limit reached
-    if (count_right >= limit_right || count_left >= limit_left)
-    {
-        status = STOP;
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_14, GPIO_PIN_RESET);
-        HAL_GPIO_WritePin(GPIOC, GPIO_PIN_15, GPIO_PIN_RESET);
-        return 0;
-    }
-
+	simulator_direction = direction;
+	printf("Simulating: Moving %d pulses\r\n", count);
     return 1;
 }
 
 void tick(void)
 {
-    if (status != STOP)
+    if (simulator_direction != STOP)
     {
-    	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); // LED
-    	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_14);
-        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_15);
-
-        // Only count on rising edge (when PC14 becomes high)
-        if (HAL_GPIO_ReadPin(GPIOC, GPIO_PIN_14) == GPIO_PIN_SET)
-        {
-            update_movement();
-        }
+    	if ((simulator_direction == FORWARD) || (simulator_direction == ROTATING_CLOCK)) {
+    		simulate_encoder_pulse(CLOCK);
+    	} else {
+    		simulate_encoder_pulse(COUNTER_CLOCK);
+    	}
+    	HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); // TOGGLE LED INDICATOR
     }
+}
+
+static void simulate_encoder_pulse(uint8_t direction)
+{
+    // Sequência quadratura
+    static const uint8_t steps[4][2] = {
+        {0, 0},
+        {1, 0},
+        {1, 1},
+        {0, 1}
+    };
+
+    static int step_index = 0;
+
+    if (direction == 0) // clock direction
+    	step_index = (step_index + 3) % 4;  // -1 com wraparound
+    else                // counter clock direction
+        step_index = (step_index + 1) % 4;
+
+    HAL_GPIO_WritePin(GPIOC, MOV_SIM_CHANNEL_A_Pin, steps[step_index][0]);  // Channel A
+    HAL_GPIO_WritePin(GPIOC, MOV_SIM_CHANNEL_B_Pin, steps[step_index][1]);  // Channel B
 }
