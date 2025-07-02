@@ -6,18 +6,25 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <actuators.h>
+#include <controller.h>
 #include <mov_simulator.h>
 #include <stm32f1xx_hal.h>
 
+
 #define SIM_MOVEMENT 1 //Movement simulation
 
-int32_t encoder_position[NUM_ENCODERS] = {0};
-uint8_t last_b_state[NUM_ENCODERS] = {0};  // For direction detection
-uint8_t wheel_direction[NUM_ENCODERS] = {STOP, STOP};
+static int32_t encoder_position[NUM_ENCODERS] = {0};
+static uint8_t last_b_state[NUM_ENCODERS] = {0};  // For direction detection
+static uint8_t wheel_direction[NUM_ENCODERS] = {STOP, STOP};
+static uint8_t right_motor_speed = 0; //TODO need implementation
+static uint8_t left_motor_speed = 0; //TODO need implementation
+static uint8_t speed_mps = 0; //TODO need implementation
+static float heading_deg = 0; //TODO need implementation, link to BNO08X
+static char *direction; //TODO need reimplementation, we only know the direction of the wheels
 
 // Pulse encoders targets
-volatile uint32_t pulse_count[NUM_ENCODERS] = {0};
-volatile uint32_t target_count[NUM_ENCODERS] = {0};
+static volatile uint32_t pulse_count[NUM_ENCODERS] = {0};
+static volatile uint32_t target_count[NUM_ENCODERS] = {0};
 
 const char *direction_names[] = {
     "STOP",             // 0
@@ -28,6 +35,18 @@ const char *direction_names[] = {
 };
 
 void set_target_count(uint8_t channel, uint32_t target);
+
+int motion_control_init(law_mower_status* law_mower) {
+	law_mower->left_motor_speed = &left_motor_speed;         // PWM duty cycle or RPM
+	law_mower->right_motor_speed = &right_motor_speed;;        // PWM duty cycle or RPM
+	law_mower->wheel_direction[NUM_ENCODERS] = wheel_direction[0];   // STOP, FORWARD, BACKWARD, etc.
+	law_mower->left_encoder_count = pulse_count[ENCODER_RIGHT];
+	law_mower->right_encoder_count = pulse_count[ENCODER_LEFT];
+	law_mower->speed_mps = &speed_mps;             // meters per second
+	law_mower->heading_deg = &heading_deg;         // orientation from IMU or GPS
+	law_mower->heading_deg = direction;
+}
+
 
 void set_right_wheel(uint8_t direction, uint8_t count) {
 	//TODO implement the hardware pin for motor actuation

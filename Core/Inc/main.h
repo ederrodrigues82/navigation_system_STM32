@@ -64,6 +64,21 @@ void start_tim2(uint8_t channel);
 
 /* USER CODE BEGIN Private defines */
 #define NUM_CHANNELS 4
+#define X 0
+#define Y 1
+#define Z 2
+#define ROLL 0
+#define PITCH 1
+#define YAW 2
+#define FRONT 0
+#define REAR 1
+#define LEFT 2
+#define RIGHT 3
+#define FRONT_RIGHT 4
+#define FRONT_LEFT 5
+#define REAR_RIGHT 6
+#define REAR_LEFT 7
+
 /* USER CODE END Private defines */
 
 #ifdef __cplusplus
