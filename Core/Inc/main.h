@@ -28,9 +28,6 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f1xx_hal.h"
-// Keep HAL_SPI_Init include here as it's a HAL driver
-#include "stm32f1xx_hal_spi.h"
-
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -38,6 +35,9 @@ extern "C" {
 #include <stdbool.h> // Required for bool type
 #include <string.h>  // Required for strncpy
 #include <math.h>    // Required for math functions like atan2f, fabsf, copysignf, asinf, M_PI
+// Keep HAL_SPI_Init include here as it's a HAL driver
+#include "stm32f1xx_hal_spi.h"
+
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
