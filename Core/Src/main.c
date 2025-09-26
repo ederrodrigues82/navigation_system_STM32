@@ -64,6 +64,7 @@ static void MX_I2C1_Init(void);
 static void MX_TIM2_Init(void);
 static void MX_USART1_UART_Init(void);
 static void MX_TIM3_Init(void);
+static void MX_I2C2_SMBUS_Init(void);
 /* USER CODE BEGIN PFP */
 static void BNO080_activate(void);
 static void UpdateVelocityPosition(float dt);
@@ -126,6 +127,7 @@ int main(void)
   MX_TIM2_Init();
   MX_USART1_UART_Init();
   MX_TIM3_Init();
+  MX_I2C2_SMBUS_Init();
   /* USER CODE BEGIN 2 */
   BNO080_activate();
   HAL_TIM_Base_Start_IT(&htim3);
@@ -215,6 +217,27 @@ static void MX_I2C1_Init(void)
   /* USER CODE BEGIN I2C1_Init 2 */
 
   /* USER CODE END I2C1_Init 2 */
+
+}
+
+/**
+  * @brief I2C2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_I2C2_SMBUS_Init(void)
+{
+
+  /* USER CODE BEGIN I2C2_Init 0 */
+
+  /* USER CODE END I2C2_Init 0 */
+
+  /* USER CODE BEGIN I2C2_Init 1 */
+
+  /* USER CODE END I2C2_Init 1 */
+  /* USER CODE BEGIN I2C2_Init 2 */
+
+  /* USER CODE END I2C2_Init 2 */
 
 }
 
@@ -402,10 +425,13 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, GPIO_PIN_13|MOV_SIM_CHANNEL_B_Pin|MOV_SIM_CHANNEL_A_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(GPIOC, BUMPER_REAR_LEFT_Pin|MOV_SIM_CHANNEL_B_Pin|MOV_SIM_CHANNEL_A_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : PC13 MOV_SIM_CHANNEL_B_Pin MOV_SIM_CHANNEL_A_Pin */
-  GPIO_InitStruct.Pin = GPIO_PIN_13|MOV_SIM_CHANNEL_B_Pin|MOV_SIM_CHANNEL_A_Pin;
+  /*Configure GPIO pin Output Level */
+  HAL_GPIO_WritePin(BUMPER_FRONT_LEFT_GPIO_Port, BUMPER_FRONT_LEFT_Pin, GPIO_PIN_RESET);
+
+  /*Configure GPIO pins : BUMPER_REAR_LEFT_Pin MOV_SIM_CHANNEL_B_Pin MOV_SIM_CHANNEL_A_Pin */
+  GPIO_InitStruct.Pin = BUMPER_REAR_LEFT_Pin|MOV_SIM_CHANNEL_B_Pin|MOV_SIM_CHANNEL_A_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
@@ -416,6 +442,27 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
+
+  /*Configure GPIO pins : BUMPER_FRONT_Pin BUMPER_REAR_Pin BUMPER_RIGHT_Pin BUMPER_LEFT_Pin
+                           BUMPER_FRONT_RIGHT_Pin */
+  GPIO_InitStruct.Pin = BUMPER_FRONT_Pin|BUMPER_REAR_Pin|BUMPER_RIGHT_Pin|BUMPER_LEFT_Pin
+                          |BUMPER_FRONT_RIGHT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : BUMPER_FRONT_LEFT_Pin */
+  GPIO_InitStruct.Pin = BUMPER_FRONT_LEFT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_PULLUP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(BUMPER_FRONT_LEFT_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : BUMPER_REAR_RIGHT_Pin */
+  GPIO_InitStruct.Pin = BUMPER_REAR_RIGHT_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  HAL_GPIO_Init(BUMPER_REAR_RIGHT_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -438,7 +485,13 @@ void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
 //	printf("TIM2_IRQHandler\r\n");
-	measure_encoders(htim);
+	if (htim->Instance == TIM2) {
+		if ((htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) ||
+				(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)) {
+			measure_encoders(htim);
+		} else {
+			read_bumpers(htim);
+		}
 }
 
 void start_tim2(uint8_t channel) {
@@ -457,8 +510,8 @@ void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
 void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 {
 	//printf("Receive data from Uart");
-	if (huart->Instance == USART1)
     {
+	if (huart->Instance == USART1)
         // Exemplo: eco do caractere recebido
         //HAL_UART_Transmit(&huart1, &rx_data, 1, HAL_MAX_DELAY);
         //printf("Receive data from Uart");

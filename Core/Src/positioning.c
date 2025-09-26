@@ -36,6 +36,7 @@ int positioning_init(law_mower_status* law_mower) {
 	law_mower->euler_angles[ROLL] = &bno080_data.roll;
 	law_mower->euler_angles[PITCH] = &bno080_data.pitch;
 	law_mower->euler_angles[YAW] = &bno080_data.yaw;
+	return 0;
 }
 
 static void BNO080_SetFeatureCommand(uint8_t reportID, uint16_t interval)

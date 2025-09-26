@@ -1,5 +1,44 @@
 #include <main.h>
 
+typedef enum {
+    STATE_ALIGN_TO_EDGE,
+    STATE_FOLLOW_EDGE,
+    STATE_CLOSED_AREA_DETECTED,
+    STATE_ZIGZAG,
+    STATE_AVOID_OBSTACLE
+} MowerState;
+
+typedef enum {
+    EDGE_SENSOR_OFF,
+	EDGE_SENSOR_TOUCH,
+	EDGE_SENSOR_HARD_TOUCH,
+	EDGE_SENSOR_CUT,
+	EDGE_SENSOR_BLOCKED
+} Edge_sensor;
+
+typedef enum {
+	SOFT_FORWARD = 15,
+	SOFT_BACKWARD = -15,
+	SOFT_CLOCK = 15,
+	SOFT_COUNTER = -15,
+	TURN_CLOCK = 50,
+	TURN_COUNTER = -50
+} Movements_steps;
+
+#define FIFO_SIZE 10  // Define the buffer size
+
+typedef struct {
+    uint8_t direction;
+    int count;
+} movement;
+
+typedef struct {
+    movement buffer[FIFO_SIZE];
+    int head;  // Where to read from
+    int tail;  // Where to write to
+    int count; // Number of items currently in buffer
+} movement_FIFO;
+
 typedef struct {
     // All pointer parameters are updated by actuators and sensor
 	// === Motion control ===
@@ -40,5 +79,11 @@ typedef struct {
     uint8_t is_manual_mode;      // 1 = manual, 0 = automatic
     uint8_t is_emergency_stop;   // 1 = stop, 0 = run
     uint8_t task_state;          // IDLE, MOWING, RETURNING_HOME, etc.
+    movement_FIFO robot_mov;	 // FIFO with robot movements
+    Edge_sensor edge_sensor;     // Rotator cut edge sensor
+
 
 } lawn_mower_status;
+
+// Main control loop function
+void mower_main_loop(lawn_mower_status *status);

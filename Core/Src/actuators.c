@@ -26,14 +26,6 @@ static char *direction; //TODO need reimplementation, we only know the direction
 static volatile uint32_t pulse_count[NUM_ENCODERS] = {0};
 static volatile uint32_t target_count[NUM_ENCODERS] = {0};
 
-const char *direction_names[] = {
-    "STOP",             // 0
-    "FORWARD",          // 1
-    "BACKWARD",         // 2
-    "ROTATING_CLOCK",   // 3
-    "ROTATING_COUNTER"  // 4
-};
-
 void set_target_count(uint8_t channel, uint32_t target);
 
 int motion_control_init(law_mower_status* law_mower) {
@@ -45,44 +37,34 @@ int motion_control_init(law_mower_status* law_mower) {
 	law_mower->speed_mps = &speed_mps;             // meters per second
 	law_mower->heading_deg = &heading_deg;         // orientation from IMU or GPS
 	law_mower->heading_deg = direction;
+	retun 0;
 }
 
 
-void set_right_wheel(uint8_t direction, uint8_t count) {
+void set_wheel(uint8_t wheel, uint8_t direction, int count) {
 	//TODO implement the hardware pin for motor actuation
-	wheel_direction[ENCODER_RIGHT] = direction;
-	set_target_count(ENCODER_RIGHT, count); //Set number pulses for the movement
+	if (wheel == WHEEL_RIGHT){
+		wheel_direction[ENCODER_RIGHT] = direction;
+		set_target_count(ENCODER_RIGHT, count); //Set number pulses for the movement
+	} else {
+		wheel_direction[ENCODER_LEFT] = direction;
+		set_target_count(ENCODER_LEFT, count); //Set number pulses for the movement
+	}
+
 	if (SIM_MOVEMENT) {
 		set_simulate_movement(direction, count);
 	}
-	printf("Moving to direction: %s, pulses: %d\r\n", direction_names[direction], count);
+	printf("Moving %s to direction: %s, pulses: %d\r\n", wheel_to_str[wheel], movement_directon_to_str[direction], count);
 
-	if (direction == STOP)
-	{
-//      TODO set pin to 0
-		return;
-	}
-//	TODO set pin to 1
-	printf("Moving %d pulses forward\r\n", count);
-	return;
-}
+    if (direction == FORWARD || direction == ROTATING_CLOCK) {
+    	//set on right wheel motor
+    	//set the direction of motor to clock
+    }
 
-void set_left_wheel(uint8_t direction, uint8_t count) {
-	//TODO implement the hardware pin for motor actuation
-	wheel_direction[ENCODER_LEFT] = direction;
-	set_target_count(ENCODER_LEFT, count); //Set number pulses for the movement
-	if (SIM_MOVEMENT) {
-		set_simulate_movement(direction, count);
-	}
-	printf("Moving to direction: %s, pulses: %d\r\n", direction_names[direction], count);
-
-	if (direction == STOP)
-	{
-//      TODO set pin to 0
-		return;
-	}
-//	TODO set pin to 1
-
+    if (direction == BACKWARD || direction == ROTATING_COUNTER) {
+		//set on right wheel motor
+		//set the direction of motor to counter clock
+    }
 	return;
 }
 
@@ -98,7 +80,7 @@ void measure_encoders(TIM_HandleTypeDef *htim)
             b_port = GPIOA; // TIM2_CH2 → GPIOA (por exemplo)
             b_pin  = GPIO_PIN_4; // Encoder right pin B
         }
-        else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_3) {
+        else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
             encoder = ENCODER_LEFT;
             b_port = GPIOA; // TIM2_CH4 → GPIOA (por exemplo)
             b_pin  = GPIO_PIN_5; // Encoder left pin B
@@ -116,7 +98,7 @@ void measure_encoders(TIM_HandleTypeDef *htim)
 
             if (abs(encoder_position[encoder]) >= target_count[encoder]) {
                 // Stop respective channel A capture
-                HAL_TIM_IC_Stop_IT(htim, (encoder == 0) ? TIM_CHANNEL_1 : TIM_CHANNEL_3);
+                HAL_TIM_IC_Stop_IT(htim, (encoder == 0) ? TIM_CHANNEL_1 : TIM_CHANNEL_2);
                 // Stop the respective wheel
                 switch (encoder) {
                     case 0:
@@ -156,4 +138,8 @@ void print_wheel_status(uint8_t encoder) {
     printf("  Direction     : %s\r\n", direction_names[wheel_direction[encoder]]);
     printf("  Target Count  : %ld\r\n", target_count[encoder]);
     printf("  Position      : %ld\r\n", encoder_position[encoder]);
+}
+
+void turn_45 (Direction direction) {
+
 }
