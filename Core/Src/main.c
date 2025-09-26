@@ -18,14 +18,17 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
-
+#include "controller.h"
+#include "menu.h"
+#include "mov_simulator.h"
+#include "actuators.h"
+#include "communication.h"
+#include "sensor.h"
+#include "positioning.h"
+#include "communication_test.h" // Include for SPI communication test function
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <math.h>
 #include <stdio.h>
-#include <menu.h>
-#include <mov_simulator.h>
-#include <actuators.h>
 /* USER CODE END Includes */
 
 /* Private typedef -----------------------------------------------------------*/
@@ -45,30 +48,49 @@
 
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
-DMA_HandleTypeDef hdma_i2c1_rx;
+
+SPI_HandleTypeDef hspi1;
 
 TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
-UART_HandleTypeDef huart1;
-
 /* USER CODE BEGIN PV */
+// SPI_HandleTypeDef hspi1; // Already declared above
+lawn_mower_status m_status;
+flat_lawn_mower_status flat_m_status;
+
+uint8_t rx_data = 0; // Definition of rx_data
+// Placeholder variables for the actual values pointed to by the lawn_mower_status struct.
+// In a real application, these would be managed by sensor reading functions and motor control.
+// For demonstration, we'll use simple variables.
+int32_t current_left_motor_speed = 0;
+int32_t current_right_motor_speed = 0;
+uint32_t current_left_encoder_count = 0;
+uint32_t current_right_encoder_count = 0;
+float current_speed_mps = 0.0f;
+float current_heading_deg = 0.0f;
+float current_pos[3] = {0.0f, 0.0f, 0.0f};
+float current_accel[3] = {0.0f, 0.0f, 0.0f};
+float current_gyro[3] = {0.0f, 0.0f, 0.0f};
+float current_euler_angles[3] = {0.0f, 0.0f, 0.0f};
+bool current_bumpers[8] = {false};
+uint8_t current_irda_distance[4] = {0};
+uint8_t current_blade_speed_rpm = 0;
 
 /* USER CODE END PV */
 
 /* Private function prototypes -----------------------------------------------*/
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
-static void MX_DMA_Init(void);
 static void MX_I2C1_Init(void);
 static void MX_TIM2_Init(void);
-static void MX_USART1_UART_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_I2C2_SMBUS_Init(void);
+static void MX_SPI1_Init(void);
 /* USER CODE BEGIN PFP */
-static void BNO080_activate(void);
-static void UpdateVelocityPosition(float dt);
-static void BNO080_ParseInputReport(uint8_t *data);
+//static void BNO080_activate(void);
+//static void UpdateVelocityPosition(float dt);
+//static void BNO080_ParseInputReport(uint8_t *data);
 float FilteredAccel(float *buffer, float newValue);
 float HighPassFilter(float current_input, float previous_output, float alpha);
 void QuaternionToEuler(float w, float x, float y, float z, float *roll, float *pitch, float *yaw);
@@ -122,18 +144,55 @@ int main(void)
 
   /* Initialize all configured peripherals */
   MX_GPIO_Init();
-  MX_DMA_Init();
   MX_I2C1_Init();
   MX_TIM2_Init();
-  MX_USART1_UART_Init();
   MX_TIM3_Init();
   MX_I2C2_SMBUS_Init();
+  MX_SPI1_Init();
   /* USER CODE BEGIN 2 */
   BNO080_activate();
   HAL_TIM_Base_Start_IT(&htim3);
-  HAL_UART_Receive_IT(&huart1, &rx_data, 1);
+//  HAL_UART_Receive_IT(&huart1, &rx_data, 1);
   printf("Initialization was successful!\r\n");
   menu(rx_data);
+
+  // Initialize m_status pointers to placeholder variables
+  m_status.left_motor_speed = &current_left_motor_speed;
+  m_status.right_motor_speed = &current_right_motor_speed;
+  m_status.left_encoder_count = &current_left_encoder_count;
+  m_status.right_encoder_count = &current_right_encoder_count;
+  m_status.speed_mps = &current_speed_mps;
+  m_status.heading_deg = &current_heading_deg;
+  m_status.blade_speed_rpm = &current_blade_speed_rpm;
+  
+  for(int i = 0; i < 3; i++) {
+      m_status.pos[i] = &current_pos[i];
+      m_status.accel[i] = &current_accel[i];
+      m_status.gyro[i] = &current_gyro[i];
+      m_status.euler_angles[i] = &current_euler_angles[i];
+  }
+
+  for(int i = 0; i < 8; i++) {
+      m_status.bumpers[i] = &current_bumpers[i];
+  }
+  for(int i = 0; i < 4; i++) {
+      m_status.irda_distance[i] = &current_irda_distance[i];
+  }
+  strncpy(m_status.direction, "STOP", sizeof(m_status.direction) - 1);
+  m_status.direction[sizeof(m_status.direction) - 1] = '\0';
+  m_status.rain_detected = 0;
+  m_status.blade_motor_status = 0;
+  m_status.battery_voltage = 0.0f;
+  m_status.battery_current = 0.0f;
+  m_status.battery_percentage = 0;
+  m_status.charging_status = 0;
+  m_status.uptime_ms = 0;
+  m_status.error_code = 0;
+  m_status.is_manual_mode = 0;
+  m_status.is_emergency_stop = 0;
+  m_status.task_state = 0; // Assuming MowerState enum starts from 0
+  m_status.edge_sensor = 0; // Assuming Edge_sensor enum starts from 0
+
   /* USER CODE END 2 */
 
   /* Infinite loop */
@@ -143,6 +202,16 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
+      // For testing purposes: Mock data and send over SPI
+      run_spi_test(&m_status);
+      // The following lines are now handled within run_spi_test for testing. 
+      // In a real application, you would manage serialization and transmission here based on your logic.
+      /*
+      serialize_lawn_mower_status(&m_status, &flat_m_status);
+      uint8_t rx_buffer[sizeof(flat_lawn_mower_status)];
+      HAL_SPI_TransmitReceive(&hspi1, (uint8_t*)&flat_m_status, rx_buffer, sizeof(flat_m_status), HAL_MAX_DELAY);
+      */
+      HAL_Delay(10); // Transmit every 10ms, adjust as needed for speed
   }
   /* USER CODE END 3 */
 }
@@ -238,6 +307,44 @@ static void MX_I2C2_SMBUS_Init(void)
   /* USER CODE BEGIN I2C2_Init 2 */
 
   /* USER CODE END I2C2_Init 2 */
+
+}
+
+/**
+  * @brief SPI1 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_SPI1_Init(void)
+{
+
+  /* USER CODE BEGIN SPI1_Init 0 */
+
+  /* USER CODE END SPI1_Init 0 */
+
+  /* USER CODE BEGIN SPI1_Init 1 */
+
+  /* USER CODE END SPI1_Init 1 */
+  /* SPI1 parameter configuration*/
+  hspi1.Instance = SPI1;
+  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
+  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
+  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
+  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
+  hspi1.Init.NSS = SPI_NSS_HARD_INPUT;
+  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
+  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
+  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
+  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
+  hspi1.Init.CRCPolynomial = 10;
+  if (HAL_SPI_Init(&hspi1) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN SPI1_Init 2 */
+
+  /* USER CODE END SPI1_Init 2 */
 
 }
 
@@ -358,55 +465,6 @@ static void MX_TIM3_Init(void)
 }
 
 /**
-  * @brief USART1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_USART1_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART1_Init 0 */
-
-  /* USER CODE END USART1_Init 0 */
-
-  /* USER CODE BEGIN USART1_Init 1 */
-
-  /* USER CODE END USART1_Init 1 */
-  huart1.Instance = USART1;
-  huart1.Init.BaudRate = 115200;
-  huart1.Init.WordLength = UART_WORDLENGTH_8B;
-  huart1.Init.StopBits = UART_STOPBITS_1;
-  huart1.Init.Parity = UART_PARITY_NONE;
-  huart1.Init.Mode = UART_MODE_TX_RX;
-  huart1.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart1.Init.OverSampling = UART_OVERSAMPLING_16;
-  if (HAL_UART_Init(&huart1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN USART1_Init 2 */
-
-  /* USER CODE END USART1_Init 2 */
-
-}
-
-/**
-  * Enable DMA controller clock
-  */
-static void MX_DMA_Init(void)
-{
-
-  /* DMA controller clock enable */
-  __HAL_RCC_DMA1_CLK_ENABLE();
-
-  /* DMA interrupt init */
-  /* DMA1_Channel7_IRQn interrupt configuration */
-  HAL_NVIC_SetPriority(DMA1_Channel7_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(DMA1_Channel7_IRQn);
-
-}
-
-/**
   * @brief GPIO Initialization Function
   * @param None
   * @retval None
@@ -437,12 +495,6 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
   HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
 
-  /*Configure GPIO pins : PA4 PA5 */
-  GPIO_InitStruct.Pin = GPIO_PIN_4|GPIO_PIN_5;
-  GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-  GPIO_InitStruct.Pull = GPIO_NOPULL;
-  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
   /*Configure GPIO pins : BUMPER_FRONT_Pin BUMPER_REAR_Pin BUMPER_RIGHT_Pin BUMPER_LEFT_Pin
                            BUMPER_FRONT_RIGHT_Pin */
   GPIO_InitStruct.Pin = BUMPER_FRONT_Pin|BUMPER_REAR_Pin|BUMPER_RIGHT_Pin|BUMPER_LEFT_Pin
@@ -463,6 +515,12 @@ static void MX_GPIO_Init(void)
   GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   HAL_GPIO_Init(BUMPER_REAR_RIGHT_GPIO_Port, &GPIO_InitStruct);
+
+  /*Configure GPIO pin : PA9 */
+  GPIO_InitStruct.Pin = GPIO_PIN_9;
+  GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_HIGH;
+  HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
 
@@ -492,35 +550,36 @@ void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 		} else {
 			read_bumpers(htim);
 		}
+	}
 }
 
 void start_tim2(uint8_t channel) {
 	HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1 + channel * 4); // Start only that channel
 }
 
-void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-{
-    if (htim->Instance == TIM3)
-    {
-        tick();  // call simulator tick function
-        //printf("Timer_3 Tick!\r\n");
-    }
-}
+//void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+//{
+//    if (htim->Instance == TIM3)
+//    {
+//        tick();  // call simulator tick function
+//        //printf("Timer_3 Tick!\r\n");
+//    }
+//}
 
-void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
-{
-	//printf("Receive data from Uart");
-    {
-	if (huart->Instance == USART1)
-        // Exemplo: eco do caractere recebido
-        //HAL_UART_Transmit(&huart1, &rx_data, 1, HAL_MAX_DELAY);
-        //printf("Receive data from Uart");
-        menu(rx_data);
-
-        // Reinicia a recepção do próximo byte
-        HAL_UART_Receive_IT(&huart1, &rx_data, 1);
-    }
-}
+//void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
+//{
+//	//printf("Receive data from Uart");
+//    {
+//	if (huart->Instance == USART1)
+//        // Exemplo: eco do caractere recebido
+//        //HAL_UART_Transmit(&huart1, &rx_data, 1, HAL_MAX_DELAY);
+//        //printf("Receive data from Uart");
+//        menu(rx_data);
+//
+//        // Reinicia a recepção do próximo byte
+//        HAL_UART_Receive_IT(&huart1, &rx_data, 1);
+//    }
+//}
 
 /* USER CODE END 4 */
 
@@ -531,11 +590,11 @@ void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
-  /* User can add his own implementation to report the HAL error return state */
-  __disable_irq();
-  while (1)
-  {
-  }
+//  /* User can add his own implementation to report the HAL error return state */
+//  __disable_irq();
+//  while (1)
+//  {
+//  }
   /* USER CODE END Error_Handler_Debug */
 }
 

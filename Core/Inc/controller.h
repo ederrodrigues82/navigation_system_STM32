@@ -1,4 +1,9 @@
+#ifndef __CONTROLLER_H
+#define __CONTROLLER_H
+
 #include <main.h>
+/* USER CODE BEGIN Includes */
+/* USER CODE END Includes */
 
 typedef enum {
     STATE_ALIGN_TO_EDGE,
@@ -37,17 +42,17 @@ typedef struct {
     int head;  // Where to read from
     int tail;  // Where to write to
     int count; // Number of items currently in buffer
-} movement_FIFO;
+} Movement_FIFO;
 
 typedef struct {
     // All pointer parameters are updated by actuators and sensor
 	// === Motion control ===
-    int *left_motor_speed;         // PWM duty cycle or RPM
-    int *right_motor_speed;        // PWM duty cycle or RPM
+	int32_t *left_motor_speed;         // PWM duty cycle or RPM
+	int32_t *right_motor_speed;        // PWM duty cycle or RPM
     char direction[30];  // receive the direction_names[] const char from actuators.c
     uint8_t wheel_direction[NUM_ENCODERS];              // STOP, FORWARD, BACKWARD, etc.
-    uint32_t *left_encoder_count;
-    uint32_t *right_encoder_count;
+    volatile uint32_t *left_encoder_count;
+    volatile uint32_t *right_encoder_count;
     float *speed_mps;             // meters per second
     float *heading_deg;           // orientation from IMU or GPS
 
@@ -79,7 +84,7 @@ typedef struct {
     uint8_t is_manual_mode;      // 1 = manual, 0 = automatic
     uint8_t is_emergency_stop;   // 1 = stop, 0 = run
     uint8_t task_state;          // IDLE, MOWING, RETURNING_HOME, etc.
-    movement_FIFO robot_mov;	 // FIFO with robot movements
+    Movement_FIFO robot_mov;	 // FIFO with robot movements
     Edge_sensor edge_sensor;     // Rotator cut edge sensor
 
 
@@ -87,3 +92,6 @@ typedef struct {
 
 // Main control loop function
 void mower_main_loop(lawn_mower_status *status);
+void move_forward(int count);
+
+#endif // __CONTROLLER_H

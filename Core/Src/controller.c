@@ -1,20 +1,30 @@
 //Responsible for the robot control
 
-#include "string.h"
-#include "math.h"
+#include <main.h>
+/* USER CODE BEGIN Includes */
+#include <string.h>
+#include <math.h>
+#include "positioning.h" // Required for positioning_init
+#include "sensor.h" // Required for sensor_init
+#include "actuators.h"
+// TODO: Create battery.h and battery.c and include battery.h here
+// TODO: Create system.h and system.c and include system.h here
+/* USER CODE END Includes */
 //#include "delay.h"  // You must implement delay_ms()
-#include <stdbool.h>
-#include <controller.h>
-#include <actuators.h>
+// Remove redundant includes as main.h or other headers now provide them
+// #include <stdbool.h>
+// #include <controller.h>
+// #include <actuators.h>
 
-static lawn_mower_status law_mower;
+//static lawn_mower_status law_mower;
 
 void init_struct (lawn_mower_status law_mower) {
 	motion_control_init(&law_mower);
 	positioning_init(&law_mower);
-	sensors_init(&lawer_mower); //TODO implement this function, create sensors.c
-	battery_power_init(&lawer_mower); //TODO implement this function
-	system_status_init(&lawer_mower); //TODO implement this function
+	sensor_init(&law_mower); // Corrected function call
+	//TODO implement this function, create sensors.c
+//	battery_power_init(&law_mower); //TODO implement this function
+//	system_status_init(&law_mower); //TODO implement this function
 }
 
 void start_operation(void) {
@@ -97,7 +107,7 @@ void stop_movement(lawn_mower_status *status) {
 void align_to_right_edge(lawn_mower_status *status) {
     // Align until right bumper hits an obstacle
     while (!(*status->bumpers[2])) {  // RIGHT = index 2
-        move_forward(status);
+//        move_forward(status);
     }
 
     stop_movement(status);
@@ -108,10 +118,10 @@ void follow_edge(lawn_mower_status *status) {
 //    uint8_t right_ir = *status->irda_distance[3]; // RIGHT IRDA
 	switch (status->edge_sensor) {
 		case EDGE_SENSOR_CUT:
-			get_touch();
+//			get_touch();
 			break;
 		case EDGE_SENSOR_HARD_TOUCH:
-			get_away();
+//			get_away();
 			break;
 		case EDGE_SENSOR_OFF:
 //			error(ERROR_EDGE_SENSOR_OFF); //TODO Implement this error
@@ -172,36 +182,36 @@ void perform_zigzag(lawn_mower_status *status) {
     }
 
     if (zig_left) {
-        turn_left_soft(status);
+//        turn_left_soft(status);
     } else {
-        turn_right_soft(status);
+//        turn_right_soft(status);
     }
 
-    move_forward(status);
+//    move_forward(status);
 }
 
 void avoid_obstacle(lawn_mower_status *status) {
     stop_movement(status);
-    move_backward(status);
-    delay_ms(500); //TODO implement a delay function without block the process
-
-    if (*status->bumpers[3]) {  // LEFT
-        turn_right(status);
-    } else {
-        turn_left(status);
-    }
-
-    delay_ms(600); //TODO implement a delay function without block the process
-    move_forward(status);
+//    move_backward(status);
+//    delay_ms(500); //TODO implement a delay function without block the process
+//
+//    if (*status->bumpers[3]) {  // LEFT
+//        turn_right(status);
+//    } else {
+//        turn_left(status);
+//    }
+//
+//    delay_ms(600); //TODO implement a delay function without block the process
+//    move_forward(status);
 }
 
 // === Main State Machine Entry ===
 void mower_main_loop(lawn_mower_status *status) {
     switch (current_state) {
-//        case STATE_ALIGN_TO_EDGE:
-//            align_to_right_edge(status);
-//            current_state = STATE_FOLLOW_EDGE;
-//            break;
+        case STATE_ALIGN_TO_EDGE:
+            align_to_right_edge(status);
+            current_state = STATE_FOLLOW_EDGE;
+            break;
 
         case STATE_FOLLOW_EDGE:
             follow_edge(status);
@@ -231,14 +241,14 @@ void mower_main_loop(lawn_mower_status *status) {
 }
 
 // Initialize the FIFO
-void mov_fifo_init(MovementFIFO *mov_fifo) {
+void mov_fifo_init(Movement_FIFO *mov_fifo) {
     mov_fifo->head = 0;
     mov_fifo->tail = 0;
     mov_fifo->count = 0;
 }
 
 // Push an item into the FIFO
-bool mov_fifo_push(MovementFIFO *mov_fifo, movement item) {
+bool mov_fifo_push(Movement_FIFO *mov_fifo, movement item) {
     if (mov_fifo->count == FIFO_SIZE) {
         // FIFO full
         return false;
@@ -250,7 +260,7 @@ bool mov_fifo_push(MovementFIFO *mov_fifo, movement item) {
 }
 
 // Pop an item from the FIFO
-bool mov_fifo_pop(MovementFIFO *mov_fifo, movement *item) {
+bool mov_fifo_pop(Movement_FIFO *mov_fifo, movement *item) {
     if (mov_fifo->count == 0) {
         // FIFO empty
         return false;

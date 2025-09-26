@@ -28,10 +28,16 @@ extern "C" {
 
 /* Includes ------------------------------------------------------------------*/
 #include "stm32f1xx_hal.h"
+// Keep HAL_SPI_Init include here as it's a HAL driver
+#include "stm32f1xx_hal_spi.h"
+
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-
+// All project-specific includes and other standard C headers will be moved to the respective .c files or other .h files.
+#include <stdbool.h> // Required for bool type
+#include <string.h>  // Required for strncpy
+#include <math.h>    // Required for math functions like atan2f, fabsf, copysignf, asinf, M_PI
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -55,7 +61,7 @@ typedef enum {
 
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
-
+#define NUM_ENCODERS 2
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
@@ -63,6 +69,7 @@ void Error_Handler(void);
 
 /* USER CODE BEGIN EFP */
 void start_tim2(uint8_t channel);
+extern uint8_t rx_data;
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

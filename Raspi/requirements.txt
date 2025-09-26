@@ -1,0 +1,2 @@
+pyserial # Although we are using SPI, pyserial is often used for general serial communication and might be useful for debugging or alternative communication later.
+spidev # Required for SPI communication on Raspberry Pi

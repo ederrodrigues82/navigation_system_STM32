@@ -10,17 +10,20 @@
 #include <mov_simulator.h>
 #include <stm32f1xx_hal.h>
 
+const char* wheel_to_str[] = { "right wheel", "left wheel" };
+const char* movement_directon_to_str[] = { "FORWARD", "BACKWARD", "STOP", "ROTATING_CLOCK", "ROTATING_COUNTER" };
+const char *direction_names[] = {"STOP", "FORWARD", "BACKWARD", "ROTATING CLOCK", "ROTATING COUNTER"};
 
 #define SIM_MOVEMENT 1 //Movement simulation
 
 static int32_t encoder_position[NUM_ENCODERS] = {0};
-static uint8_t last_b_state[NUM_ENCODERS] = {0};  // For direction detection
+//static uint8_t last_b_state[NUM_ENCODERS] = {0};  // For direction detection
 static uint8_t wheel_direction[NUM_ENCODERS] = {STOP, STOP};
-static uint8_t right_motor_speed = 0; //TODO need implementation
-static uint8_t left_motor_speed = 0; //TODO need implementation
-static uint8_t speed_mps = 0; //TODO need implementation
+static int32_t right_motor_speed = 0; //TODO need implementation
+static int32_t left_motor_speed = 0; //TODO need implementation
+static float speed_mps = 0.0f; //TODO need implementation
 static float heading_deg = 0; //TODO need implementation, link to BNO08X
-static char *direction; //TODO need reimplementation, we only know the direction of the wheels
+static char direction_str[30]; // Changed to array type
 
 // Pulse encoders targets
 static volatile uint32_t pulse_count[NUM_ENCODERS] = {0};
@@ -28,16 +31,17 @@ static volatile uint32_t target_count[NUM_ENCODERS] = {0};
 
 void set_target_count(uint8_t channel, uint32_t target);
 
-int motion_control_init(law_mower_status* law_mower) {
+int motion_control_init(lawn_mower_status* law_mower) {
 	law_mower->left_motor_speed = &left_motor_speed;         // PWM duty cycle or RPM
 	law_mower->right_motor_speed = &right_motor_speed;;        // PWM duty cycle or RPM
 	law_mower->wheel_direction[NUM_ENCODERS] = wheel_direction[0];   // STOP, FORWARD, BACKWARD, etc.
-	law_mower->left_encoder_count = pulse_count[ENCODER_RIGHT];
-	law_mower->right_encoder_count = pulse_count[ENCODER_LEFT];
+	law_mower->left_encoder_count = &pulse_count[ENCODER_RIGHT];
+	law_mower->right_encoder_count = &pulse_count[ENCODER_LEFT];
 	law_mower->speed_mps = &speed_mps;             // meters per second
 	law_mower->heading_deg = &heading_deg;         // orientation from IMU or GPS
-	law_mower->heading_deg = direction;
-	retun 0;
+	strncpy(law_mower->direction, direction_str, sizeof(law_mower->direction) - 1);
+	law_mower->direction[sizeof(law_mower->direction) - 1] = '\0';
+	return 0;
 }
 
 
@@ -142,4 +146,12 @@ void print_wheel_status(uint8_t encoder) {
 
 void turn_45 (Direction direction) {
 
+}
+
+void set_left_wheel(uint8_t direction, int count) {
+    set_wheel(WHEEL_LEFT, direction, count);
+}
+
+void set_right_wheel(uint8_t direction, int count) {
+    set_wheel(WHEEL_RIGHT, direction, count);
 }

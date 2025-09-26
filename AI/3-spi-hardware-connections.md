@@ -1,0 +1,2 @@
+1- Read all information on .md files on this AI folder
+2- Considering the boards STM32 and Raspi mentioned in another prompt on this same folder show me a schematic with the connections for full duplex SPI with STM32 like master.

@@ -1,18 +1,12 @@
 // Configure and transmit message to BNO080
-#include <controller.h>
-#include <positioning.h>
+#include <main.h>
+#include "positioning.h"
+#include "stm32f1xx_hal.h"
 
-#define BNO080_BUFFER_SIZE 20 //buffer size of movement sensor
-#define BNO080_ADDR (0x4A << 1)  // = 0x94 ADDR pulled down
-#define FILTER_SIZE 10  // Filter used on accelerometer, you can adjust this value
-#define DT 100 // Period o accelerometer measure in miliseconds
-
-uint8_t bno080_rx_buffer[BNO080_BUFFER_SIZE];
 float accelX_buffer[FILTER_SIZE] = {0};
 float accelY_buffer[FILTER_SIZE] = {0};
 float accelZ_buffer[FILTER_SIZE] = {0};
 uint8_t accel_index = 0;
-uint8_t rx_data;
 
 typedef struct {
     float accelX, accelY, accelZ;
@@ -23,7 +17,7 @@ typedef struct {
 
 BNO080_Data_t bno080_data;
 
-int positioning_init(law_mower_status* law_mower) {
+int positioning_init(lawn_mower_status* law_mower) {
 	law_mower->pos[X] = &bno080_data.posX;
 	law_mower->pos[Y] = &bno080_data.posY;
 	law_mower->pos[Z] = &bno080_data.posZ;
@@ -39,7 +33,7 @@ int positioning_init(law_mower_status* law_mower) {
 	return 0;
 }
 
-static void BNO080_SetFeatureCommand(uint8_t reportID, uint16_t interval)
+void BNO080_SetFeatureCommand(uint8_t reportID, uint16_t interval)
 {
     uint8_t packet[17] = {0};
 
@@ -58,7 +52,7 @@ static void BNO080_SetFeatureCommand(uint8_t reportID, uint16_t interval)
 }
 
 //Activate accelerometer and rotation vector
-static void BNO080_activate(void) {
+void BNO080_activate(void) {
 	BNO080_SetFeatureCommand(0x01, DT); // Accelerometer, 100 ms
 	BNO080_SetFeatureCommand(0x04, DT); // Linear Acceleration
 	BNO080_SetFeatureCommand(0x05, DT); // Rotation Vector, 100 ms
@@ -70,7 +64,7 @@ void BNO080_Receive(void)
 }
 
 //Parse BNO080 data, accelerometer and rotation vector
-static void BNO080_ParseInputReport(uint8_t *data) {
+void BNO080_ParseInputReport(uint8_t *data) {
     static float prevAccelX = 0, prevAccelY = 0, prevAccelZ = 0;
 
     uint8_t reportID = data[4];
@@ -118,12 +112,12 @@ static void BNO080_ParseInputReport(uint8_t *data) {
 }
 
 //High pass filter to improve the sensor signal
-static float HighPassFilter(float current_input, float previous_output, float alpha) {
+float HighPassFilter(float current_input, float previous_output, float alpha) {
     return alpha * (previous_output + current_input - previous_output);
 }
 
 //Removes high-frequency noise well
-static float FilteredAccel(float *buffer, float newValue)
+float FilteredAccel(float *buffer, float newValue)
 {
 
 	buffer[accel_index] = newValue;
@@ -144,7 +138,7 @@ static float FilteredAccel(float *buffer, float newValue)
 /**
  * Converts a quaternion (w, x, y, z) to Euler angles (roll, pitch, yaw).
  * Angles are in radians.**/
-static void QuaternionToEuler(float w, float x, float y, float z, float *roll, float *pitch, float *yaw)
+void QuaternionToEuler(float w, float x, float y, float z, float *roll, float *pitch, float *yaw)
 {
     // Roll (x-axis rotation)
     *roll = atan2f(2.0f * (w * x + y * z), 1.0f - 2.0f * (x * x + y * y));
@@ -160,7 +154,7 @@ static void QuaternionToEuler(float w, float x, float y, float z, float *roll, f
     *yaw = atan2f(2.0f * (w * z + x * y), 1.0f - 2.0f * (y * y + z * z));
 }
 
-static void UpdateVelocityPosition(float dt) {
+void UpdateVelocityPosition(float dt) {
     dt = DT / 1000; // convert dt to miliseconds
 	bno080_data.velX += bno080_data.accelX * dt;
     bno080_data.velY += bno080_data.accelY * dt;

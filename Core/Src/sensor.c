@@ -1,3 +1,26 @@
+#include "main.h"
+#include "sensor.h"
+#include "controller.h" // Required for lawn_mower_status
+/* USER CODE BEGIN Includes */
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+/* USER CODE BEGIN PV */
 static bool bumpers[8];        	// FRONT, REAR, RIGHT, LEFT
     								// FRONT_RIGHT, FRONT_LEFT
 									// REAR_RIGHT, REAR_LEFT, RIGHT, LEFT
@@ -6,24 +29,27 @@ static bool bumpers[8];        	// FRONT, REAR, RIGHT, LEFT
 									// 1 = rain, pause mowing
 									// 1 = ON, 0 = OFF
 
-static uint8_t *irda_distance[4];
-static uint8_t rain_detected;
-static uint8_t blade_motor_status;
-static volatile uint8_t *blade_speed_rpm;
+//static uint8_t *irda_distance[4];
+//static uint8_t rain_detected;
+//static uint8_t blade_motor_status_func_placeholder; // Placeholder for future function
+/*
+	//TODO implement this function blade motor_status and blade_speed
+}*/
+//static volatile uint8_t *blade_speed_rpm;
+/* USER CODE END PV */
 
-void sensor_init(law_mower_status* law_mower) {
-	law_mower->bumpers[FRONT] = &bumper[FRONT];
-	law_mower->bumpers[REAR] = &bumper[REAR];
-	law_mower->bumpers[RIGHT] = &bumper[RIGHT];
-	law_mower->bumpers[LEFT] = &bumper[LEFT];
-	law_mower->bumpers[FRONT_RIGHT] = &bumper[FRONT_RIGHT];
-	law_mower->bumpers[FRONT_LEFT] = &bumper[FRONT_LEFT];
-	law_mower->bumpers[REAR_RIGHT] = &bumper[REAR_RIGHT];
-	law_mower->bumpers[REAR_LEFT] = &bumper[REAR_LEFT];
-	return 0;
+void sensor_init(lawn_mower_status* law_mower) {
+	law_mower->bumpers[FRONT] = &bumpers[FRONT];
+	law_mower->bumpers[REAR] = &bumpers[REAR];
+	law_mower->bumpers[RIGHT] = &bumpers[RIGHT];
+	law_mower->bumpers[LEFT] = &bumpers[LEFT];
+	law_mower->bumpers[FRONT_RIGHT] = &bumpers[FRONT_RIGHT];
+	law_mower->bumpers[FRONT_LEFT] = &bumpers[FRONT_LEFT];
+	law_mower->bumpers[REAR_RIGHT] = &bumpers[REAR_RIGHT];
+	law_mower->bumpers[REAR_LEFT] = &bumpers[REAR_LEFT];
 }
 
-int read_bumpers(TIM_HandleTypeDef *htim) {
+void read_bumpers(TIM_HandleTypeDef *htim) {
 	//TODO implement the interrupt to read rise and drop edge
 	if (HAL_GPIO_ReadPin(GPIOB, BUMPER_FRONT_Pin)) {
 

@@ -5,9 +5,9 @@
 
 #include <main.h>
 #include <stdio.h>
-#include <actuators.h>
-#include "stm32f1xx_hal.h"
+#include <actuators.h> // Required for Movement_direction enum (STOP, FORWARD, ROTATING_CLOCK)
 #include <mov_simulator.h>
+/* USER CODE END Includes */
 
 #define CLOCK 0
 #define COUNTER_CLOCK 1
