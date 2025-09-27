@@ -43,13 +43,14 @@ void tick(void)
 
 static void simulate_encoder_pulse(uint8_t direction)
 {
-    // Sequência quadratura
-    static const uint8_t steps[4][2] = {
-        {0, 0},
-        {1, 0},
-        {1, 1},
-        {0, 1}
-    };
+    //TODO os pinos estã desabilitados antes de colocar para funcionar corrigir isso
+	// Sequência quadratura
+//    static const uint8_t steps[4][2] = {
+//        {0, 0},
+//        {1, 0},
+//        {1, 1},
+//        {0, 1}
+//    };
 
     static int step_index = 0;
 
@@ -58,6 +59,6 @@ static void simulate_encoder_pulse(uint8_t direction)
     else                // counter clock direction
         step_index = (step_index + 1) % 4;
 
-    HAL_GPIO_WritePin(GPIOC, MOV_SIM_CHANNEL_A_Pin, steps[step_index][0]);  // Channel A
-    HAL_GPIO_WritePin(GPIOC, MOV_SIM_CHANNEL_B_Pin, steps[step_index][1]);  // Channel B
+    //HAL_GPIO_WritePin(GPIOC, MOV_SIM_CHANNEL_A_Pin, steps[step_index][0]);  // Channel A
+    //HAL_GPIO_WritePin(GPIOC, MOV_SIM_CHANNEL_B_Pin, steps[step_index][1]);  // Channel B
 }

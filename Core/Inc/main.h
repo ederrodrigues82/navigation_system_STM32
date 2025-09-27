@@ -77,20 +77,17 @@ typedef enum {
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
 
-// Custom logging function prototype
+/* USER CODE BEGIN EFP */
 void log_message(log_level_t level, const char* file, int line, const char* format, ...);
-
-// Macros for easier logging, automatically capturing file and line
 #define LOG_DEBUG(format, ...)    log_message(LOG_LEVEL_DEBUG, __FILE__, __LINE__, format, ##__VA_ARGS__)
 #define LOG_INFO(format, ...)     log_message(LOG_LEVEL_INFO, __FILE__, __LINE__, format, ##__VA_ARGS__)
 #define LOG_WARNING(format, ...)  log_message(LOG_LEVEL_WARNING, __FILE__, __LINE__, format, ##__VA_ARGS__)
 #define LOG_ERROR(format, ...)    log_message(LOG_LEVEL_ERROR, __FILE__, __LINE__, format, ##__VA_ARGS__)
 #define LOG_CRITICAL(format, ...) log_message(LOG_LEVEL_CRITICAL, __FILE__, __LINE__, format, ##__VA_ARGS__)
 
-/* USER CODE BEGIN EFP */
 void start_tim2(uint8_t channel);
 extern uint8_t rx_data;
-void send_ping_message(void); // Prototype for the ping function
+void send_ping_message(void);
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

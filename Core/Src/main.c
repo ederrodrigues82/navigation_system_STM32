@@ -231,7 +231,7 @@ int main(void)
   MX_TIM3_Init();
   MX_I2C2_SMBUS_Init();
   MX_SPI1_Init();
-  MX_USART1_UART_Init(); // This call is crucial for UART to work
+  MX_USART1_UART_Init();
   /* USER CODE BEGIN 2 */
   BNO080_activate();
   HAL_TIM_Base_Start_IT(&htim3);
@@ -480,10 +480,6 @@ static void MX_TIM2_Init(void)
   sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
   sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
   sConfigIC.ICFilter = 0;
-  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_1) != HAL_OK)
-  {
-    Error_Handler();
-  }
   if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
   {
     Error_Handler();
@@ -600,17 +596,17 @@ static void MX_GPIO_Init(void)
   __HAL_RCC_GPIOB_CLK_ENABLE();
 
   /*Configure GPIO pin Output Level */
-  HAL_GPIO_WritePin(GPIOC, BUMPER_REAR_LEFT_Pin|MOV_SIM_CHANNEL_B_Pin|MOV_SIM_CHANNEL_A_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(BUMPER_REAR_LEFT_GPIO_Port, BUMPER_REAR_LEFT_Pin, GPIO_PIN_RESET);
 
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(BUMPER_FRONT_LEFT_GPIO_Port, BUMPER_FRONT_LEFT_Pin, GPIO_PIN_RESET);
 
-  /*Configure GPIO pins : BUMPER_REAR_LEFT_Pin MOV_SIM_CHANNEL_B_Pin MOV_SIM_CHANNEL_A_Pin */
-  GPIO_InitStruct.Pin = BUMPER_REAR_LEFT_Pin|MOV_SIM_CHANNEL_B_Pin|MOV_SIM_CHANNEL_A_Pin;
+  /*Configure GPIO pin : BUMPER_REAR_LEFT_Pin */
+  GPIO_InitStruct.Pin = BUMPER_REAR_LEFT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
   GPIO_InitStruct.Pull = GPIO_NOPULL;
   GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
-  HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
+  HAL_GPIO_Init(BUMPER_REAR_LEFT_GPIO_Port, &GPIO_InitStruct);
 
   /*Configure GPIO pins : BUMPER_FRONT_Pin BUMPER_REAR_Pin BUMPER_RIGHT_Pin BUMPER_LEFT_Pin
                            BUMPER_FRONT_RIGHT_Pin */
@@ -692,6 +688,16 @@ void start_tim2(uint8_t channel) {
 //    }
 //}
 
+// Ping message function for UART testing
+void send_ping_message(void) {
+  static uint32_t last_ping_time = 0;
+  if (HAL_GetTick() - last_ping_time >= 2000) { // Every 2 seconds
+      LOG_INFO("STM32 Ping! Uptime: %lu ms", HAL_GetTick());
+      HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); // Toggle the onboard LED (PC13)
+      last_ping_time = HAL_GetTick();
+  }
+}
+
 /* USER CODE END 4 */
 
 /**
@@ -726,12 +732,4 @@ void assert_failed(uint8_t *file, uint32_t line)
 }
 #endif /* USE_FULL_ASSERT */
 
-// Ping message function for UART testing
-void send_ping_message(void) {
-    static uint32_t last_ping_time = 0;
-    if (HAL_GetTick() - last_ping_time >= 2000) { // Every 2 seconds
-        LOG_INFO("STM32 Ping! Uptime: %lu ms", HAL_GetTick());
-        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); // Toggle the onboard LED (PC13)
-        last_ping_time = HAL_GetTick();
-    }
-}
+
