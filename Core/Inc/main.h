@@ -90,6 +90,7 @@ void log_message(log_level_t level, const char* file, int line, const char* form
 /* USER CODE BEGIN EFP */
 void start_tim2(uint8_t channel);
 extern uint8_t rx_data;
+void send_ping_message(void); // Prototype for the ping function
 /* USER CODE END EFP */
 
 /* Private defines -----------------------------------------------------------*/

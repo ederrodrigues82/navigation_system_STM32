@@ -286,7 +286,8 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
       // For testing purposes: Mock data and send over SPI
-      run_spi_test(&m_status);
+	  send_ping_message(); // <--- Add this line here
+	  //run_spi_test(&m_status);
       // The following lines are now handled within run_spi_test for testing. 
       // In a real application, you would manage serialization and transmission here based on your logic.
       /*
@@ -294,7 +295,7 @@ int main(void)
       uint8_t rx_buffer[sizeof(flat_lawn_mower_status)];
       HAL_SPI_TransmitReceive(&hspi1, (uint8_t*)&flat_m_status, rx_buffer, sizeof(flat_m_status), HAL_MAX_DELAY);
       */
-      HAL_Delay(10); // Transmit every 10ms, adjust as needed for speed
+      //HAL_Delay(10); // Transmit every 10ms, adjust as needed for speed
   }
   /* USER CODE END 3 */
 }
@@ -724,3 +725,13 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
+
+// Ping message function for UART testing
+void send_ping_message(void) {
+    static uint32_t last_ping_time = 0;
+    if (HAL_GetTick() - last_ping_time >= 2000) { // Every 2 seconds
+        LOG_INFO("STM32 Ping! Uptime: %lu ms", HAL_GetTick());
+        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); // Toggle the onboard LED (PC13)
+        last_ping_time = HAL_GetTick();
+    }
+}
