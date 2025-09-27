@@ -3,6 +3,8 @@ import struct
 
 class SPISlave:
     def __init__(self, bus=0, device=0, max_speed_hz=None):
+        self.bus = bus  # Store bus number
+        self.device = device  # Store device number
         self.spi = spidev.SpiDev()
         self.spi.open(bus, device)
         if max_speed_hz:

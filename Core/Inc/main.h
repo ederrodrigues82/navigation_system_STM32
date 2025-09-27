@@ -52,6 +52,16 @@ typedef enum {
 	REAR_RIGHT,
 	REAR_LEFT
 } Direction;
+
+// Log levels, similar to Python's logging module
+typedef enum {
+    LOG_LEVEL_DEBUG,
+    LOG_LEVEL_INFO,
+    LOG_LEVEL_WARNING,
+    LOG_LEVEL_ERROR,
+    LOG_LEVEL_CRITICAL
+} log_level_t;
+
 /* USER CODE END ET */
 
 /* Exported constants --------------------------------------------------------*/
@@ -66,6 +76,16 @@ typedef enum {
 
 /* Exported functions prototypes ---------------------------------------------*/
 void Error_Handler(void);
+
+// Custom logging function prototype
+void log_message(log_level_t level, const char* file, int line, const char* format, ...);
+
+// Macros for easier logging, automatically capturing file and line
+#define LOG_DEBUG(format, ...)    log_message(LOG_LEVEL_DEBUG, __FILE__, __LINE__, format, ##__VA_ARGS__)
+#define LOG_INFO(format, ...)     log_message(LOG_LEVEL_INFO, __FILE__, __LINE__, format, ##__VA_ARGS__)
+#define LOG_WARNING(format, ...)  log_message(LOG_LEVEL_WARNING, __FILE__, __LINE__, format, ##__VA_ARGS__)
+#define LOG_ERROR(format, ...)    log_message(LOG_LEVEL_ERROR, __FILE__, __LINE__, format, ##__VA_ARGS__)
+#define LOG_CRITICAL(format, ...) log_message(LOG_LEVEL_CRITICAL, __FILE__, __LINE__, format, ##__VA_ARGS__)
 
 /* USER CODE BEGIN EFP */
 void start_tim2(uint8_t channel);

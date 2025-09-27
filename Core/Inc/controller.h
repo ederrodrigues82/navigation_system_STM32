@@ -47,30 +47,30 @@ typedef struct {
 typedef struct {
     // All pointer parameters are updated by actuators and sensor
 	// === Motion control ===
-	int32_t *left_motor_speed;         // PWM duty cycle or RPM
-	int32_t *right_motor_speed;        // PWM duty cycle or RPM
+	int32_t left_motor_speed;         // PWM duty cycle or RPM
+	int32_t right_motor_speed;        // PWM duty cycle or RPM
     char direction[30];  // receive the direction_names[] const char from actuators.c
     uint8_t wheel_direction[NUM_ENCODERS];              // STOP, FORWARD, BACKWARD, etc.
-    volatile uint32_t *left_encoder_count;
-    volatile uint32_t *right_encoder_count;
-    float *speed_mps;             // meters per second
-    float *heading_deg;           // orientation from IMU or GPS
+    uint32_t left_encoder_count;
+    uint32_t right_encoder_count;
+    float speed_mps;             // meters per second
+    float heading_deg;           // orientation from IMU or GPS
 
     // === Positioning ===
-    float *pos[3];                  // X, Y and Z position in cm
-    float *accel[3];                // X, Y and Z accelaration
-    float *gyro[3];                 // X, Y and Z gyro in rad
-    float *euler_angles[3];         // yaw, pitch, roll
+    float pos[3];                  // X, Y and Z position in cm
+    float accel[3];                // X, Y and Z accelaration
+    float gyro[3];                 // X, Y and Z gyro in rad
+    float euler_angles[3];         // yaw, pitch, roll
 
     // === Sensors ===
-    bool *bumpers[8];        // FRONT, REAR, RIGHT, LEFT
+    bool bumpers[8];        // FRONT, REAR, RIGHT, LEFT
     						// FRONT_RIGHT, FRONT_LEFT
 							// REAR_RIGHT, REAR_LEFT, RIGHT, LEFT
     						// 1 = hit, 0 = no collision
-    uint8_t *irda_distance[4]; // FRONT, REAR, LEFT, RIGHT in cm
+    uint8_t irda_distance[4]; // FRONT, REAR, LEFT, RIGHT in cm
     uint8_t rain_detected;       // 1 = rain, pause mowing
     uint8_t blade_motor_status;  // 1 = ON, 0 = OFF
-    uint8_t *blade_speed_rpm;
+    uint8_t blade_speed_rpm;
 
     // === Battery and power ===
     float battery_voltage;       // Volts
@@ -86,6 +86,7 @@ typedef struct {
     uint8_t task_state;          // IDLE, MOWING, RETURNING_HOME, etc.
     Movement_FIFO robot_mov;	 // FIFO with robot movements
     Edge_sensor edge_sensor;     // Rotator cut edge sensor
+    MowerState mower_state;
 
 
 } lawn_mower_status;

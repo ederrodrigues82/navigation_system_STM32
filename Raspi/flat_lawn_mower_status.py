@@ -97,34 +97,21 @@ class FlatLawnMowerStatus:
         )
 
     def __str__(self):
-        # For better readability, consider formatting this output more cleanly.
-        # This is a basic representation.
-        return f"FlatLawnMowerStatus({{
-    left_motor_speed: {self.left_motor_speed},
-    right_motor_speed: {self.right_motor_speed},
-    direction: '{self.direction}',
-    wheel_direction: {self.wheel_direction},
-    left_encoder_count: {self.left_encoder_count},
-    right_encoder_count: {self.right_encoder_count},
-    speed_mps: {self.speed_mps},
-    heading_deg: {self.heading_deg},
-    pos: [{self.pos_x}, {self.pos_y}, {self.pos_z}],
-    accel: [{self.accel_x}, {self.accel_y}, {self.accel_z}],
-    gyro: [{self.gyro_x}, {self.gyro_y}, {self.gyro_z}],
-    euler_angles: [{self.euler_roll}, {self.euler_pitch}, {self.euler_yaw}],
-    bumpers: {list(self.bumpers)},
-    irda_distance: {list(self.irda_distance)},
-    rain_detected: {self.rain_detected},
-    blade_motor_status: {self.blade_motor_status},
-    blade_speed_rpm: {self.blade_speed_rpm},
-    battery_voltage: {self.battery_voltage},
-    battery_current: {self.battery_current},
-    battery_percentage: {self.battery_percentage},
-    charging_status: {self.charging_status},
-    uptime_ms: {self.uptime_ms},
-    error_code: {self.error_code},
-    is_manual_mode: {self.is_manual_mode},
-    is_emergency_stop: {self.is_emergency_stop},
-    task_state: {self.task_state},
-    edge_sensor: {self.edge_sensor}
-}})
+        return f"""
+FlatLawnMowerStatus:
+  Motors: L={self.left_motor_speed}, R={self.right_motor_speed}
+  Direction: '{self.direction}', Wheel_Direction: {self.wheel_direction}
+  Encoders: L={self.left_encoder_count}, R={self.right_encoder_count}
+  Speed: {self.speed_mps:.2f} m/s, Heading: {self.heading_deg:.2f}°
+  Position: ({self.pos_x:.2f}, {self.pos_y:.2f}, {self.pos_z:.2f})
+  Acceleration: ({self.accel_x:.2f}, {self.accel_y:.2f}, {self.accel_z:.2f})
+  Gyro: ({self.gyro_x:.2f}, {self.gyro_y:.2f}, {self.gyro_z:.2f})
+  Euler Angles: ({self.euler_roll:.2f}, {self.euler_pitch:.2f}, {self.euler_yaw:.2f})
+  Bumpers: {list(self.bumpers)}
+  IRDA Distance: {list(self.irda_distance)}
+  Rain Detected: {bool(self.rain_detected)}, Blade Motor Status: {bool(self.blade_motor_status)}, Blade Speed: {self.blade_speed_rpm} RPM
+  Battery: Voltage={self.battery_voltage:.2f}V, Current={self.battery_current:.2f}A, Pct={self.battery_percentage}%, Charging={bool(self.charging_status)}
+  Uptime: {self.uptime_ms} ms, Error Code: {hex(self.error_code)}
+  Mode: Manual={bool(self.is_manual_mode)}, Emergency Stop={bool(self.is_emergency_stop)}
+  Task State: {self.task_state}, Edge Sensor: {self.edge_sensor}
+        """

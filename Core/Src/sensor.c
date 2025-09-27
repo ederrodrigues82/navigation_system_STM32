@@ -39,14 +39,14 @@ static bool bumpers[8];        	// FRONT, REAR, RIGHT, LEFT
 /* USER CODE END PV */
 
 void sensor_init(lawn_mower_status* law_mower) {
-	law_mower->bumpers[FRONT] = &bumpers[FRONT];
-	law_mower->bumpers[REAR] = &bumpers[REAR];
-	law_mower->bumpers[RIGHT] = &bumpers[RIGHT];
-	law_mower->bumpers[LEFT] = &bumpers[LEFT];
-	law_mower->bumpers[FRONT_RIGHT] = &bumpers[FRONT_RIGHT];
-	law_mower->bumpers[FRONT_LEFT] = &bumpers[FRONT_LEFT];
-	law_mower->bumpers[REAR_RIGHT] = &bumpers[REAR_RIGHT];
-	law_mower->bumpers[REAR_LEFT] = &bumpers[REAR_LEFT];
+	law_mower->bumpers[FRONT] = bumpers[FRONT];
+	law_mower->bumpers[REAR] = bumpers[REAR];
+	law_mower->bumpers[RIGHT] = bumpers[RIGHT];
+	law_mower->bumpers[LEFT] = bumpers[LEFT];
+	law_mower->bumpers[FRONT_RIGHT] = bumpers[FRONT_RIGHT];
+	law_mower->bumpers[FRONT_LEFT] = bumpers[FRONT_LEFT];
+	law_mower->bumpers[REAR_RIGHT] = bumpers[REAR_RIGHT];
+	law_mower->bumpers[REAR_LEFT] = bumpers[REAR_LEFT];
 }
 
 void read_bumpers(TIM_HandleTypeDef *htim) {

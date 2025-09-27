@@ -21,7 +21,8 @@
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
-#include <stdio.h>+#include "controller.h"
+#include <stdio.h>
+#include "controller.h"
 #include "menu.h"
 #include "mov_simulator.h"
 #include "actuators.h"
@@ -29,6 +30,8 @@
 #include "sensor.h"
 #include "positioning.h"
 #include "communication_test.h" // Include for SPI communication test function
+#include <stdarg.h> // Required for variadic functions
+#include <stdio.h>  // Required for vsnprintf
 
 /* USER CODE END Includes */
 
@@ -63,22 +66,21 @@ lawn_mower_status m_status;
 flat_lawn_mower_status flat_m_status;
 
 uint8_t rx_data = 0; // Definition of rx_data
-// Placeholder variables for the actual values pointed to by the lawn_mower_status struct.
-// In a real application, these would be managed by sensor reading functions and motor control.
-// For demonstration, we'll use simple variables.
-int32_t current_left_motor_speed = 0;
-int32_t current_right_motor_speed = 0;
-uint32_t current_left_encoder_count = 0;
-uint32_t current_right_encoder_count = 0;
-float current_speed_mps = 0.0f;
-float current_heading_deg = 0.0f;
-float current_pos[3] = {0.0f, 0.0f, 0.0f};
-float current_accel[3] = {0.0f, 0.0f, 0.0f};
-float current_gyro[3] = {0.0f, 0.0f, 0.0f};
-float current_euler_angles[3] = {0.0f, 0.0f, 0.0f};
-bool current_bumpers[8] = {false};
-uint8_t current_irda_distance[4] = {0};
-uint8_t current_blade_speed_rpm = 0;
+
+// Remove these placeholder variables as lawn_mower_status members are no longer pointers.
+// int32_t current_left_motor_speed = 0;
+// int32_t current_right_motor_speed = 0;
+// uint32_t current_left_encoder_count = 0;
+// uint32_t current_right_encoder_count = 0;
+// float current_speed_mps = 0.0f;
+// float current_heading_deg = 0.0f;
+// float current_pos[3] = {0.0f, 0.0f, 0.0f};
+// float current_accel[3] = {0.0f, 0.0f, 0.0f};
+// float current_gyro[3] = {0.0f, 0.0f, 0.0f};
+// float current_euler_angles[3] = {0.0f, 0.0f, 0.0f};
+// bool current_bumpers[8] = {false};
+// uint8_t current_irda_distance[4] = {0};
+// uint8_t current_blade_speed_rpm = 0;
 
 /* USER CODE END PV */
 
@@ -116,6 +118,82 @@ void (*channel_callbacks[NUM_CHANNELS])(void) = {
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
+#include <stdarg.h> // Required for variadic functions
+#include <stdio.h>  // Required for vsnprintf
+
+// Buffer for formatted log messages
+#define LOG_BUFFER_SIZE 256
+static char log_buffer[LOG_BUFFER_SIZE];
+
+// UART Handle (declared in main.c, extern in main.h)
+extern UART_HandleTypeDef huart1;
+
+/**
+  * @brief  Custom logging function to send formatted messages over UART.
+  * @param  level: The log level (DEBUG, INFO, WARNING, ERROR, CRITICAL).
+  * @param  file: The source file where the log was made.
+  * @param  line: The line number in the source file.
+  * @param  format: Format string for the message.
+  * @retval None
+  */
+void log_message(log_level_t level, const char* file, int line, const char* format, ...) {
+    va_list args;
+    va_start(args, format);
+
+    // Get current tick for timestamp
+    uint32_t timestamp = HAL_GetTick();
+
+    // Determine log level string
+    const char* level_str;
+    switch (level) {
+        case LOG_LEVEL_DEBUG:
+            level_str = "DEBUG";
+            break;
+        case LOG_LEVEL_INFO:
+            level_str = "INFO";
+            break;
+        case LOG_LEVEL_WARNING:
+            level_str = "WARNING";
+            break;
+        case LOG_LEVEL_ERROR:
+            level_str = "ERROR";
+            break;
+        case LOG_LEVEL_CRITICAL:
+            level_str = "CRITICAL";
+            break;
+        default:
+            level_str = "UNKNOWN";
+            break;
+    }
+
+    // Format the log message
+    int len = snprintf(
+        log_buffer, LOG_BUFFER_SIZE,
+        "%lu - %s:%d - %s - ",
+        timestamp, file, line, level_str
+    );
+
+    if (len < 0 || len >= LOG_BUFFER_SIZE) {
+        // Handle error or truncation
+        len = LOG_BUFFER_SIZE - 1;
+    }
+
+    vsnprintf(log_buffer + len, LOG_BUFFER_SIZE - len, format, args);
+    va_end(args);
+
+    // Add newline and send over UART
+    size_t total_len = strlen(log_buffer);
+    if (total_len < LOG_BUFFER_SIZE - 1) {
+        strcat(log_buffer, "\r\n");
+        total_len += 2;
+    } else if (total_len == LOG_BUFFER_SIZE - 1) {
+        // Buffer full, just ensure null termination for current message
+        // No space for newline, or it would overwrite existing chars.
+        log_buffer[LOG_BUFFER_SIZE - 1] = '\0';
+    }
+
+    HAL_UART_Transmit(&huart1, (uint8_t*)log_buffer, total_len, HAL_MAX_DELAY);
+}
 
 /* USER CODE END 0 */
 
@@ -153,35 +231,35 @@ int main(void)
   MX_TIM3_Init();
   MX_I2C2_SMBUS_Init();
   MX_SPI1_Init();
-  MX_USART1_UART_Init();
+  MX_USART1_UART_Init(); // This call is crucial for UART to work
   /* USER CODE BEGIN 2 */
   BNO080_activate();
   HAL_TIM_Base_Start_IT(&htim3);
 //  HAL_UART_Receive_IT(&huart1, &rx_data, 1);
-  printf("Initialization was successful!\r\n");
+  LOG_INFO("Initialization was successful!");
   menu(rx_data);
 
-  // Initialize m_status pointers to placeholder variables
-  m_status.left_motor_speed = &current_left_motor_speed;
-  m_status.right_motor_speed = &current_right_motor_speed;
-  m_status.left_encoder_count = &current_left_encoder_count;
-  m_status.right_encoder_count = &current_right_encoder_count;
-  m_status.speed_mps = &current_speed_mps;
-  m_status.heading_deg = &current_heading_deg;
-  m_status.blade_speed_rpm = &current_blade_speed_rpm;
+  // Initialize m_status members with default values
+  m_status.left_motor_speed = 0;
+  m_status.right_motor_speed = 0;
+  m_status.left_encoder_count = 0;
+  m_status.right_encoder_count = 0;
+  m_status.speed_mps = 0.0f;
+  m_status.heading_deg = 0.0f;
+  m_status.blade_speed_rpm = 0;
   
   for(int i = 0; i < 3; i++) {
-      m_status.pos[i] = &current_pos[i];
-      m_status.accel[i] = &current_accel[i];
-      m_status.gyro[i] = &current_gyro[i];
-      m_status.euler_angles[i] = &current_euler_angles[i];
+      m_status.pos[i] = 0.0f;
+      m_status.accel[i] = 0.0f;
+      m_status.gyro[i] = 0.0f;
+      m_status.euler_angles[i] = 0.0f;
   }
 
   for(int i = 0; i < 8; i++) {
-      m_status.bumpers[i] = &current_bumpers[i];
+      m_status.bumpers[i] = false;
   }
   for(int i = 0; i < 4; i++) {
-      m_status.irda_distance[i] = &current_irda_distance[i];
+      m_status.irda_distance[i] = 0;
   }
   strncpy(m_status.direction, "STOP", sizeof(m_status.direction) - 1);
   m_status.direction[sizeof(m_status.direction) - 1] = '\0';
@@ -464,7 +542,7 @@ static void MX_TIM3_Init(void)
     Error_Handler();
   }
   /* USER CODE BEGIN TIM3_Init 2 */
-  printf("Timer_3 initialized with successful!\r\n");
+  LOG_INFO("Timer_3 initialized successfully!");
   /* USER CODE END TIM3_Init 2 */
 
 }
@@ -594,18 +672,18 @@ void start_tim2(uint8_t channel) {
 //    if (htim->Instance == TIM3)
 //    {
 //        tick();  // call simulator tick function
-//        //printf("Timer_3 Tick!\r\n");
+//        //LOG_INFO("Timer_3 Tick!");
 //    }
 //}
 
 //void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 //{
-//	//printf("Receive data from Uart");
+//	//LOG_INFO("Receive data from Uart");
 //    {
 //	if (huart->Instance == USART1)
 //        // Exemplo: eco do caractere recebido
 //        //HAL_UART_Transmit(&huart1, &rx_data, 1, HAL_MAX_DELAY);
-//        //printf("Receive data from Uart");
+//        //LOG_INFO("Receive data from Uart");
 //        menu(rx_data);
 //
 //        // Reinicia a recepção do próximo byte
@@ -622,6 +700,7 @@ void start_tim2(uint8_t channel) {
 void Error_Handler(void)
 {
   /* USER CODE BEGIN Error_Handler_Debug */
+  LOG_CRITICAL("Error_Handler called!");
 //  /* User can add his own implementation to report the HAL error return state */
 //  __disable_irq();
 //  while (1)

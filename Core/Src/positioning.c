@@ -18,18 +18,25 @@ typedef struct {
 BNO080_Data_t bno080_data;
 
 int positioning_init(lawn_mower_status* law_mower) {
-	law_mower->pos[X] = &bno080_data.posX;
-	law_mower->pos[Y] = &bno080_data.posY;
-	law_mower->pos[Z] = &bno080_data.posZ;
-	law_mower->pos[X] = &bno080_data.velX;
-	law_mower->pos[Y] = &bno080_data.velY;
-	law_mower->pos[Z] = &bno080_data.velZ;
-	law_mower->accel[X] = &bno080_data.accelX;
-	law_mower->accel[Y] = &bno080_data.accelY;
-	law_mower->accel[Z] = &bno080_data.accelZ;
-	law_mower->euler_angles[ROLL] = &bno080_data.roll;
-	law_mower->euler_angles[PITCH] = &bno080_data.pitch;
-	law_mower->euler_angles[YAW] = &bno080_data.yaw;
+	law_mower->pos[X] = bno080_data.posX;
+	law_mower->pos[Y] = bno080_data.posY;
+	law_mower->pos[Z] = bno080_data.posZ;
+	// The following lines were incorrect, assigning velocity to position. Removing them.
+	// law_mower->pos[X] = bno080_data.velX;
+	// law_mower->pos[Y] = bno080_data.velY;
+	// law_mower->pos[Z] = bno080_data.velZ;
+	law_mower->accel[X] = bno080_data.accelX;
+	law_mower->accel[Y] = bno080_data.accelY;
+	law_mower->accel[Z] = bno080_data.accelZ;
+
+	// Gyro data is not directly stored in BNO080_Data_t in this setup, initializing to 0.0f.
+	law_mower->gyro[X] = 0.0f;
+	law_mower->gyro[Y] = 0.0f;
+	law_mower->gyro[Z] = 0.0f;
+
+	law_mower->euler_angles[ROLL] = bno080_data.roll;
+	law_mower->euler_angles[PITCH] = bno080_data.pitch;
+	law_mower->euler_angles[YAW] = bno080_data.yaw;
 	return 0;
 }
 

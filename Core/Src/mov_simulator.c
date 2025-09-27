@@ -24,7 +24,7 @@ static void simulate_encoder_pulse(uint8_t direction);
 int set_simulate_movement(int direction, int count)
 {
 	simulator_direction = direction;
-	printf("Simulating: Moving %d pulses\r\n", count);
+	LOG_INFO("Simulating: Moving %d pulses", count);
     return 1;
 }
 

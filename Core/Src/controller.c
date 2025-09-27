@@ -106,7 +106,7 @@ void stop_movement(lawn_mower_status *status) {
 
 void align_to_right_edge(lawn_mower_status *status) {
     // Align until right bumper hits an obstacle
-    while (!(*status->bumpers[2])) {  // RIGHT = index 2
+    while (!(status->bumpers[2])) {  // RIGHT = index 2
 //        move_forward(status);
     }
 
@@ -153,13 +153,13 @@ bool area_closed(lawn_mower_status *status) {
     static uint32_t start_time = 0;
 
     if (start_x < 0.0f) {
-        start_x = *status->pos[0];
-        start_y = *status->pos[1];
+        start_x = status->pos[0];
+        start_y = status->pos[1];
         start_time = status->uptime_ms;
     }
 
-    float dx = *status->pos[0] - start_x;
-    float dy = *status->pos[1] - start_y;
+    float dx = status->pos[0] - start_x;
+    float dy = status->pos[1] - start_y;
     float distance = sqrtf(dx * dx + dy * dy);
 
     return (distance < 20.0f && status->uptime_ms - start_time > 15000);
@@ -167,7 +167,7 @@ bool area_closed(lawn_mower_status *status) {
 
 bool check_bumper_hit(lawn_mower_status *status) {
     for (int i = 0; i < 8; i++) {
-        if (*status->bumpers[i]) return true;
+        if (status->bumpers[i]) return true;
     }
     return false;
 }

@@ -32,13 +32,13 @@ static volatile uint32_t target_count[NUM_ENCODERS] = {0};
 void set_target_count(uint8_t channel, uint32_t target);
 
 int motion_control_init(lawn_mower_status* law_mower) {
-	law_mower->left_motor_speed = &left_motor_speed;         // PWM duty cycle or RPM
-	law_mower->right_motor_speed = &right_motor_speed;;        // PWM duty cycle or RPM
-	law_mower->wheel_direction[NUM_ENCODERS] = wheel_direction[0];   // STOP, FORWARD, BACKWARD, etc.
-	law_mower->left_encoder_count = &pulse_count[ENCODER_RIGHT];
-	law_mower->right_encoder_count = &pulse_count[ENCODER_LEFT];
-	law_mower->speed_mps = &speed_mps;             // meters per second
-	law_mower->heading_deg = &heading_deg;         // orientation from IMU or GPS
+	law_mower->left_motor_speed = left_motor_speed;         // PWM duty cycle or RPM
+	law_mower->right_motor_speed = right_motor_speed;        // PWM duty cycle or RPM
+	// Removed: law_mower->wheel_direction[NUM_ENCODERS] = wheel_direction[0]; // This was an out-of-bounds access and should be handled by iterating or memcopy if needed.
+	law_mower->left_encoder_count = pulse_count[ENCODER_RIGHT];
+	law_mower->right_encoder_count = pulse_count[ENCODER_LEFT];
+	law_mower->speed_mps = speed_mps;             // meters per second
+	law_mower->heading_deg = heading_deg;         // orientation from IMU or GPS
 	strncpy(law_mower->direction, direction_str, sizeof(law_mower->direction) - 1);
 	law_mower->direction[sizeof(law_mower->direction) - 1] = '\0';
 	return 0;
@@ -58,7 +58,7 @@ void set_wheel(uint8_t wheel, uint8_t direction, int count) {
 	if (SIM_MOVEMENT) {
 		set_simulate_movement(direction, count);
 	}
-	printf("Moving %s to direction: %s, pulses: %d\r\n", wheel_to_str[wheel], movement_directon_to_str[direction], count);
+	LOG_INFO("Moving %s to direction: %s, pulses: %d", wheel_to_str[wheel], movement_directon_to_str[direction], count);
 
     if (direction == FORWARD || direction == ROTATING_CLOCK) {
     	//set on right wheel motor
@@ -134,14 +134,14 @@ int32_t get_encoder_position(uint8_t encoder) {
 
 void print_wheel_status(uint8_t encoder) {
     if (encoder >= NUM_ENCODERS) {
-        printf("Invalid encoder index: %d\r\n", encoder);
+        LOG_ERROR("Invalid encoder index: %d", encoder);
         return;
     }
 
-    printf("\r\nWheel %s:\r\n", (encoder == ENCODER_RIGHT) ? "RIGHT" : "LEFT");
-    printf("  Direction     : %s\r\n", direction_names[wheel_direction[encoder]]);
-    printf("  Target Count  : %ld\r\n", target_count[encoder]);
-    printf("  Position      : %ld\r\n", encoder_position[encoder]);
+    LOG_INFO("\nWheel %s:", (encoder == ENCODER_RIGHT) ? "RIGHT" : "LEFT");
+    LOG_INFO("  Direction     : %s", direction_names[wheel_direction[encoder]]);
+    LOG_INFO("  Target Count  : %ld", target_count[encoder]);
+    LOG_INFO("  Position      : %ld", encoder_position[encoder]);
 }
 
 void turn_45 (Direction direction) {

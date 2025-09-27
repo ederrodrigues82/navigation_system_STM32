@@ -1,0 +1,45 @@
+{
+    "configurations": [
+        {
+            "name": "Python: Remote Attach to Raspberry Pi",
+            "type": "python",
+            "request": "attach",
+            "port": 5678, // This MUST match the port used in debugpy.listen() on the Pi
+            "host": "10.1.1.102", // Replace with your Raspberry Pi's actual IP address
+            "pathMappings": [
+                {
+                    "localRoot": "${workspaceFolder}/Raspi", // Path to your local Raspi folder
+                    "remoteRoot": "/home/pi/Raspi"          // Path to the Raspi folder on your Raspberry Pi
+                }
+            ]
+        },
+        {
+            "showDevDebugOutput": "parsed",
+            "cwd": "${workspaceRoot}",
+            "executable": "./build/debug/projectName.elf",
+            "name": "Debug STM32",
+            "request": "launch",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+            "preLaunchTask": "Build STM",
+            "device": "",
+            "configFiles": [
+                "openocd.cfg"
+            ]
+        },
+        {
+            "showDevDebugOutput": "parsed",
+            "cwd": "${workspaceRoot}",
+            "executable": "./build/debug/projectName.elf",
+            "name": "Attach STM32",
+            "request": "attach",
+            "type": "cortex-debug",
+            "servertype": "openocd",
+            "preLaunchTask": "Build STM",
+            "device": "",
+            "configFiles": [
+                "openocd.cfg"
+            ]
+        }
+    ]
+}
