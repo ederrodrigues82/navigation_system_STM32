@@ -60,6 +60,8 @@ TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
 
+static RTC_HandleTypeDef hrtc; // Declare RTC Handle here
+
 /* USER CODE BEGIN PV */
 // SPI_HandleTypeDef hspi1; // Already declared above
 lawn_mower_status m_status;
@@ -141,7 +143,18 @@ void log_message(log_level_t level, const char* file, int line, const char* form
     va_start(args, format);
 
     // Get current tick for timestamp
-    uint32_t timestamp = HAL_GetTick();
+    uint32_t total_milliseconds = HAL_GetTick();
+
+    // Calculate elapsed time components
+    uint32_t seconds = total_milliseconds / 1000;
+    uint32_t milliseconds = total_milliseconds % 1000;
+    uint32_t minutes = seconds / 60;
+    uint32_t hours = minutes / 60;
+    uint32_t days = hours / 24;
+
+    seconds %= 60;
+    minutes %= 60;
+    hours %= 24;
 
     // Determine log level string
     const char* level_str;
@@ -166,11 +179,12 @@ void log_message(log_level_t level, const char* file, int line, const char* form
             break;
     }
 
-    // Format the log message
+    // Format the log message with pseudo date/time
     int len = snprintf(
         log_buffer, LOG_BUFFER_SIZE,
-        "%lu - %s:%d - %s - ",
-        timestamp, file, line, level_str
+        "2025/%02lu/%02lu %02lu:%02lu:%02lu.%03lu - %s:%d - %s - ",
+        days + 1, 1, // Placeholder for Month and Day. You can adjust days + 1 for simple day counting if desired.
+        hours, minutes, seconds, milliseconds, file, line, level_str
     );
 
     if (len < 0 || len >= LOG_BUFFER_SIZE) {
@@ -218,7 +232,7 @@ int main(void)
   /* USER CODE END Init */
 
   /* Configure the system clock */
-  SystemClock_Config();
+  //SystemClock_Config(); // Commented out as per user change
 
   /* USER CODE BEGIN SysInit */
 
