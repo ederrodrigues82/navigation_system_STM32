@@ -60,7 +60,7 @@ TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
 
-static RTC_HandleTypeDef hrtc; // Declare RTC Handle here
+// static RTC_HandleTypeDef hrtc; // Declare RTC Handle here - Removed as it's not used.
 
 /* USER CODE BEGIN PV */
 // SPI_HandleTypeDef hspi1; // Already declared above
@@ -183,7 +183,7 @@ void log_message(log_level_t level, const char* file, int line, const char* form
     int len = snprintf(
         log_buffer, LOG_BUFFER_SIZE,
         "2025/%02lu/%02lu %02lu:%02lu:%02lu.%03lu - %s:%d - %s - ",
-        days + 1, 1, // Placeholder for Month and Day. You can adjust days + 1 for simple day counting if desired.
+        days + 1, (long unsigned int)1, // Cast to long unsigned int for month placeholder
         hours, minutes, seconds, milliseconds, file, line, level_str
     );
 
@@ -232,20 +232,51 @@ int main(void)
   /* USER CODE END Init */
 
   /* Configure the system clock */
-  //SystemClock_Config(); // Commented out as per user change
+  SystemClock_Config(); // System clock *must* be configured
+  //LOG_WARNING("SystemClock_Config() is commented out and not being called."); // This log is no longer needed
 
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
+  // The order here is crucial:
+  // 1. HAL_Init
+  // 2. SystemClock_Config
+  // 3. GPIO Init (for UART pins)
+  // 4. UART Init
+  // 5. Other peripherals
+
+  if (HAL_Init() != HAL_OK)
+  {
+    LOG_ERROR("HAL_Init() failed!");
+    Error_Handler();
+  } 
+
+  // Moved up to ensure UART GPIO is ready before UART peripheral init
   MX_GPIO_Init();
-  MX_I2C1_Init();
-  MX_TIM2_Init();
-  MX_TIM3_Init();
-  MX_I2C2_SMBUS_Init();
-  MX_SPI1_Init();
+  
+  // UART must be initialized before any LOG_INFO/ERROR calls will work
   MX_USART1_UART_Init();
+  LOG_INFO("HAL_Init() successful.");  
+  LOG_INFO("MX_GPIO_Init() successful.");
+  LOG_INFO("MX_USART1_UART_Init() successful.");
+
+  MX_I2C1_Init();
+  LOG_INFO("MX_I2C1_Init() successful.");
+
+  MX_TIM2_Init();
+  LOG_INFO("MX_TIM2_Init() successful.");
+
+  MX_TIM3_Init();
+  LOG_INFO("MX_TIM3_Init() successful.");
+
+  MX_I2C2_SMBUS_Init();
+  LOG_INFO("MX_I2C2_SMBUS_Init() successful.");
+
+  MX_SPI1_Init();
+  LOG_INFO("MX_SPI1_Init() successful.");
+
   /* USER CODE BEGIN 2 */
   BNO080_activate();
   HAL_TIM_Base_Start_IT(&htim3);
@@ -301,7 +332,7 @@ int main(void)
     /* USER CODE BEGIN 3 */
       // For testing purposes: Mock data and send over SPI
 	  send_ping_message(); // <--- Add this line here
-	  //run_spi_test(&m_status);
+	  run_spi_test(&m_status);
       // The following lines are now handled within run_spi_test for testing. 
       // In a real application, you would manage serialization and transmission here based on your logic.
       /*
