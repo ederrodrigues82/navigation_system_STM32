@@ -5,7 +5,7 @@
             "type": "python",
             "request": "attach",
             "port": 5678, // This MUST match the port used in debugpy.listen() on the Pi
-            "host": "10.1.1.102", // Replace with your Raspberry Pi's actual IP address
+            "host": "10.1.1.132", // Replace with your Raspberry Pi's actual IP address
             "pathMappings": [
                 {
                     "localRoot": "${workspaceFolder}/Raspi", // Path to your local Raspi folder

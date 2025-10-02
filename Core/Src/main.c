@@ -232,36 +232,32 @@ int main(void)
   /* USER CODE END Init */
 
   /* Configure the system clock */
-  SystemClock_Config(); // System clock *must* be configured
-  //LOG_WARNING("SystemClock_Config() is commented out and not being called."); // This log is no longer needed
+  SystemClock_Config();
+  //LOG_WARNING("SystemClock_Config() is commented out and not being called.");
 
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-  // The order here is crucial:
-  // 1. HAL_Init
-  // 2. SystemClock_Config
-  // 3. GPIO Init (for UART pins)
-  // 4. UART Init
-  // 5. Other peripherals
 
   if (HAL_Init() != HAL_OK)
   {
     LOG_ERROR("HAL_Init() failed!");
     Error_Handler();
-  } 
+  } else {
+    LOG_INFO("HAL_Init() successful.");
+  }
 
-  // Moved up to ensure UART GPIO is ready before UART peripheral init
+  // GPIO must be initialized before UART to configure its pins
   MX_GPIO_Init();
-  
-  // UART must be initialized before any LOG_INFO/ERROR calls will work
-  MX_USART1_UART_Init();
-  LOG_INFO("HAL_Init() successful.");  
   LOG_INFO("MX_GPIO_Init() successful.");
+
+  // UART must be initialized before any LOG_INFO/ERROR calls will work correctly over UART
+  MX_USART1_UART_Init();
   LOG_INFO("MX_USART1_UART_Init() successful.");
 
+  // Other peripherals can be initialized after UART is ready for logging
   MX_I2C1_Init();
   LOG_INFO("MX_I2C1_Init() successful.");
 
@@ -278,12 +274,16 @@ int main(void)
   LOG_INFO("MX_SPI1_Init() successful.");
 
   /* USER CODE BEGIN 2 */
+  LOG_INFO("Before BNO080_activate()."); // Debug Log
   BNO080_activate();
+  LOG_INFO("After BNO080_activate()."); // Debug Log
   HAL_TIM_Base_Start_IT(&htim3);
+  LOG_INFO("After HAL_TIM_Base_Start_IT(&htim3)."); // Debug Log
 //  HAL_UART_Receive_IT(&huart1, &rx_data, 1);
   LOG_INFO("Initialization was successful!");
-  menu(rx_data);
+  //menu(rx_data);
 
+  LOG_INFO("Before m_status initialization."); // Debug Log
   // Initialize m_status members with default values
   m_status.left_motor_speed = 0;
   m_status.right_motor_speed = 0;
@@ -299,6 +299,7 @@ int main(void)
       m_status.gyro[i] = 0.0f;
       m_status.euler_angles[i] = 0.0f;
   }
+  LOG_INFO("After m_status initialization."); // Debug Log
 
   for(int i = 0; i < 8; i++) {
       m_status.bumpers[i] = false;
@@ -320,6 +321,7 @@ int main(void)
   m_status.is_emergency_stop = 0;
   m_status.task_state = 0; // Assuming MowerState enum starts from 0
   m_status.edge_sensor = 0; // Assuming Edge_sensor enum starts from 0
+  LOG_INFO("Before while(1) loop."); // Debug Log
 
   /* USER CODE END 2 */
 
@@ -331,7 +333,7 @@ int main(void)
 
     /* USER CODE BEGIN 3 */
       // For testing purposes: Mock data and send over SPI
-	  send_ping_message(); // <--- Add this line here
+	  // send_ping_message(); // <--- Add this line here
 	  run_spi_test(&m_status);
       // The following lines are now handled within run_spi_test for testing. 
       // In a real application, you would manage serialization and transmission here based on your logic.
@@ -456,7 +458,7 @@ static void MX_SPI1_Init(void)
   /* USER CODE END SPI1_Init 1 */
   /* SPI1 parameter configuration*/
   hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_MASTER;
+  hspi1.Init.Mode = SPI_MODE_SLAVE;
   hspi1.Init.Direction = SPI_DIRECTION_2LINES;
   hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
   hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;

@@ -12,6 +12,8 @@ print("Debugger attached! Continuing execution.")
 import time
 import struct
 import logging
+import traceback # Import traceback for detailed error logging
+
 from flat_lawn_mower_status import FlatLawnMowerStatus, FLAT_MOWER_STATUS_FORMAT
 from spi_slave import SPISlave
 
@@ -28,63 +30,50 @@ SPI_DEVICE = 0
 SPI_SPEED_HZ = 36000000  # Adjusted to match STM32's 36 MHz (PCLK2/2)
 # SPI_MODE = 0b00  # CPOL=0, CPHA=0 (mode 0) - This is implied by default for spidev, but can be set explicitly if needed.
 
-def display_menu():
-    logging.info("\n--- Raspberry Pi Debug Menu ---")
-    logging.info("1. Receive STM32 status (default)")
-    logging.info("2. Send command: Toggle LED (Example)")
-    logging.info("3. Send command: Request specific sensor data (Example)")
-    logging.info("Q. Quit")
-    return input("Enter your choice: ").strip().upper()
-
-def main():
-    logging.info("Raspberry Pi SPI Slave Application")
-    spi_slave = None
+# --- Function to handle SPI communication (Simplified for Ping Test) ---
+def receive_status_from_stm32(spi_slave: SPISlave, expected_message_size: int):
+    logging.info("Waiting for data from STM32...")
     try:
-        spi_slave = SPISlave(bus=SPI_BUS, device=SPI_DEVICE, max_speed_hz=SPI_SPEED_HZ)
-        logging.info(f"SPI connection opened on bus {spi_slave.bus}, device {spi_slave.device}.")
+        # Receive data from STM32 (assuming STM32 is master)
+        # We expect a certain number of bytes based on the struct size (4 for "PING")
+        received_data = spi_slave.receive_data(expected_message_size)
+        
+        # Log raw received data, but only if it's not all zeros
+        if received_data != b'\x00' * expected_message_size:
+            logging.info(f"Raw received data: {received_data}")
 
-        expected_data_size = struct.calcsize(FLAT_MOWER_STATUS_FORMAT)
-        logging.info(f"Expecting to receive {expected_data_size} bytes per message.")
+        # Commenting out the deserialization for simple ping test
+        # mower_status = FlatLawnMowerStatus.from_bytes(bytes(received_data))
+        # logging.info(f"Received Mower Status: {mower_status}")
+
+    except Exception as e:
+        logging.error(f"Error receiving data from STM32: {e}")
+        logging.critical(traceback.format_exc())
+
+
+# --- Main application logic ---
+# The interactive menu logic is removed for this simplified ping test
+
+if __name__ == "__main__":
+    try:
+        # Initialize SPI as slave
+        spi_slave = SPISlave(bus=0, device=0)
+        #spi_slave.open_spi()
+        logging.info(f"SPI connection opened on bus {spi_slave.bus}, device {spi_slave.device}.")
+        
+        # Define the expected message size for the ping test (4 bytes for "PING")
+        # Make sure this matches the STM32's SPI_PING_MESSAGE_SIZE
+        expected_message_size = 4 
+        logging.info(f"Expecting to receive {expected_message_size} bytes per message (for PING test).")
 
         while True:
-            choice = display_menu()
-
-            if choice == 'Q':
-                break
-            elif choice == '2':
-                logging.info("Sending Toggle LED command...")
-                # Example command: a single byte for command ID
-                response = spi_slave.send_command(b'\x01', rx_len=1) # Send 0x01, expect 1 byte response
-                logging.info(f"Command sent, STM32 response: {response.hex()}")
-            elif choice == '3':
-                logging.info("Sending Request Sensor Data command...")
-                # Example command: command ID + sensor ID
-                response = spi_slave.send_command(b'\x02\x01', rx_len=5) # Request sensor 0x01, expect 5 bytes
-                logging.info(f"Command sent, STM32 response: {response.hex()}")
-            elif choice == '1':
-                logging.info("Waiting for data from STM32...")
-                received_raw_data = spi_slave.receive_data(expected_data_size)
-
-                if received_raw_data:
-                    try:
-                        lawn_mower_status = FlatLawnMowerStatus.from_bytes(received_raw_data)
-                        logging.info(f"Received data: {lawn_mower_status}")
-                    except struct.error as e:
-                        logging.error(f"Error unpacking received data: {e}")
-                        logging.error(f"Raw data: {received_raw_data.hex()}")
-                else:
-                    logging.info("No data received.")
-            else:
-                logging.warning("Invalid choice. Please try again.")
-
-            time.sleep(0.1)
+            receive_status_from_stm32(spi_slave, expected_message_size)
+            time.sleep(0.1) # Small delay to prevent busy-waiting
 
     except Exception as e:
         logging.critical(f"An error occurred: {e}")
+        logging.critical(traceback.format_exc())
     finally:
+        logging.info("SPI connection closed.")
         if spi_slave:
             spi_slave.close()
-            logging.info("SPI connection closed.")
-
-if __name__ == "__main__":
-    main()
