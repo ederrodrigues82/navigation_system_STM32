@@ -1,21 +1,18 @@
 # Raspi/main.py
-import debugpy
-# This tells debugpy to listen for a connection on port 5678
-# and wait until a debugger client connects before continuing execution.
-# Change "0.0.0.0" to your Pi's specific IP if you only want to allow
-# connections from that IP, but "0.0.0.0" is generally fine for dev.
-debugpy.listen(("0.0.0.0", 5678))
-print("Waiting for debugger client to attach...")
-debugpy.wait_for_client()
-print("Debugger attached! Continuing execution.")
-
+import os
 import time
-import struct
-import logging
-import traceback # Import traceback for detailed error logging
 
-from flat_lawn_mower_status import FlatLawnMowerStatus, FLAT_MOWER_STATUS_FORMAT
-from spi_slave import SPISlave
+# Optional: wait for debugger when DEBUG_UART=1 (e.g. DEBUG_UART=1 python main.py)
+if os.environ.get("DEBUG_UART") == "1":
+    import debugpy
+    debugpy.listen(("0.0.0.0", 5678))
+    print("Waiting for debugger client to attach...")
+    debugpy.wait_for_client()
+    print("Debugger attached! Continuing execution.")
+import logging
+import traceback  # Import traceback for detailed error logging
+
+from uart_client import UARTClient
 
 # Configure logging
 logging.basicConfig(
@@ -24,22 +21,19 @@ logging.basicConfig(
     datefmt='%Y-%m-%d %H:%M:%S'
 )
 
-# --- Configuration (must match STM32 settings) ---
-SPI_BUS = 0
-SPI_DEVICE = 0
-SPI_SPEED_HZ = 36000000  # Adjusted to match STM32's 36 MHz (PCLK2/2)
-# SPI_MODE = 0b00  # CPOL=0, CPHA=0 (mode 0) - This is implied by default for spidev, but can be set explicitly if needed.
+# --- Configuration (must match STM32 USART2 settings) ---
+UART_PORT = "/dev/ttyAMA0"  # Use /dev/ttyS0 for Pi Zero W
+UART_BAUDRATE = 115200
 
-# --- Function to handle SPI communication (Simplified for Ping Test) ---
-def receive_status_from_stm32(spi_slave: SPISlave, expected_message_size: int):
+# --- Function to handle UART communication (Simplified for Ping Test) ---
+def receive_status_from_stm32(uart_client: UARTClient, expected_message_size: int):
     logging.info("Waiting for data from STM32...")
     try:
-        # Receive data from STM32 (assuming STM32 is master)
-        # We expect a certain number of bytes based on the struct size (4 for "PING")
-        received_data = spi_slave.receive_data(expected_message_size)
-        
-        # Log raw received data, but only if it's not all zeros
-        if received_data != b'\x00' * expected_message_size:
+        # RPi receives data sent by STM32 over UART
+        received_data = uart_client.receive_data(expected_message_size)
+
+        # Log raw received data, but only if it's not empty
+        if received_data:
             logging.info(f"Raw received data: {received_data}")
 
         # Commenting out the deserialization for simple ping test
@@ -55,25 +49,25 @@ def receive_status_from_stm32(spi_slave: SPISlave, expected_message_size: int):
 # The interactive menu logic is removed for this simplified ping test
 
 if __name__ == "__main__":
+    uart_client = None
     try:
-        # Initialize SPI as slave
-        spi_slave = SPISlave(bus=0, device=0)
-        #spi_slave.open_spi()
-        logging.info(f"SPI connection opened on bus {spi_slave.bus}, device {spi_slave.device}.")
-        
+        # Initialize UART (RPi receives from STM32 USART2)
+        uart_client = UARTClient(port=UART_PORT, baudrate=UART_BAUDRATE)
+        logging.info(f"UART connection opened on {uart_client.port} at {uart_client.baudrate} baud.")
+
         # Define the expected message size for the ping test (4 bytes for "PING")
-        # Make sure this matches the STM32's SPI_PING_MESSAGE_SIZE
-        expected_message_size = 4 
+        # Make sure this matches the STM32's UART_PING_MESSAGE_SIZE
+        expected_message_size = 4
         logging.info(f"Expecting to receive {expected_message_size} bytes per message (for PING test).")
 
         while True:
-            receive_status_from_stm32(spi_slave, expected_message_size)
-            time.sleep(0.1) # Small delay to prevent busy-waiting
+            receive_status_from_stm32(uart_client, expected_message_size)
+            time.sleep(0.1)  # Small delay to prevent busy-waiting
 
     except Exception as e:
         logging.critical(f"An error occurred: {e}")
         logging.critical(traceback.format_exc())
     finally:
-        logging.info("SPI connection closed.")
-        if spi_slave:
-            spi_slave.close()
+        logging.info("UART connection closed.")
+        if uart_client:
+            uart_client.close()

@@ -11,11 +11,10 @@ extern "C" {
 #include "communication.h"
 
 // Function declarations
-void run_spi_test(lawn_mower_status *m_status);
-void send_spi_ping(void);
+void run_uart_test(lawn_mower_status *m_status);
 
-extern const uint8_t spi_ping_message[];
-extern const uint16_t SPI_PING_MESSAGE_SIZE;
+extern const uint8_t uart_ping_message[];
+extern const uint16_t UART_PING_MESSAGE_SIZE;
 
 #ifdef __cplusplus
 }

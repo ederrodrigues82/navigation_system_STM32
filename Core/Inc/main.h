@@ -35,9 +35,6 @@ extern "C" {
 #include <stdbool.h> // Required for bool type
 #include <string.h>  // Required for strncpy
 #include <math.h>    // Required for math functions like atan2f, fabsf, copysignf, asinf, M_PI
-// Keep HAL_SPI_Init include here as it's a HAL driver
-#include "stm32f1xx_hal_spi.h"
-
 /* USER CODE END Includes */
 
 /* Exported types ------------------------------------------------------------*/
@@ -93,10 +90,6 @@ void send_ping_message(void);
 /* Private defines -----------------------------------------------------------*/
 #define BUMPER_REAR_LEFT_Pin GPIO_PIN_13
 #define BUMPER_REAR_LEFT_GPIO_Port GPIOC
-#define MOV_SIM_CHANNEL_B_Pin GPIO_PIN_14
-#define MOV_SIM_CHANNEL_B_GPIO_Port GPIOC
-#define MOV_SIM_CHANNEL_A_Pin GPIO_PIN_15
-#define MOV_SIM_CHANNEL_A_GPIO_Port GPIOC
 #define BUMPER_FRONT_Pin GPIO_PIN_0
 #define BUMPER_FRONT_GPIO_Port GPIOB
 #define BUMPER_REAR_Pin GPIO_PIN_1

@@ -4,43 +4,20 @@
 #include "communication.h"
 #include <string.h>
 
-extern SPI_HandleTypeDef hspi1;
+extern UART_HandleTypeDef huart2;
 
 // Define a simple ping message
-const uint8_t spi_ping_message[] = "PING";
-const uint16_t SPI_PING_MESSAGE_SIZE = sizeof(spi_ping_message) - 1; // -1 to exclude null terminator
+const uint8_t uart_ping_message[] = "PING";
+const uint16_t UART_PING_MESSAGE_SIZE = sizeof(uart_ping_message) - 1; // -1 to exclude null terminator
 
-// Function to send a simple SPI ping message
-// void send_spi_ping(void)
-// {
-//     LOG_INFO("Attempting to send SPI ping...");
-//     HAL_StatusTypeDef status = HAL_SPI_Transmit(&hspi1, (uint8_t*)spi_ping_message, SPI_PING_MESSAGE_SIZE, 100);
-//     if (status == HAL_OK)
-//     {
-//         LOG_INFO("SPI Ping sent successfully!");
-//     }
-//     else if (status == HAL_TIMEOUT)
-//     {
-//         LOG_ERROR("SPI Ping transmission timed out!");
-//     }
-//     else
-//     {
-//         LOG_ERROR("SPI Ping transmission failed with status: %d", status);
-//     }
-// }
+void run_uart_test(lawn_mower_status* m_status) {
+    LOG_INFO("run_uart_test called. Current Tick: %lu", HAL_GetTick()); // Debug log
 
-
-void run_spi_test(lawn_mower_status* m_status) {
-    LOG_INFO("run_spi_test called. Current Tick: %lu", HAL_GetTick()); // Debug log
-    // Removed the 2-second delay for debugging purposes
-    // if (HAL_GetTick() - last_run_time >= 2000) { // Execute every 2 seconds
-    static uint32_t last_run_time = HAL_GetTick();
-
-        LOG_INFO("STM32 Ping! Uptime: %lu ms", HAL_GetTick());
-        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); // Toggle the onboard LED (PC13)
+    LOG_INFO("STM32 Ping! Uptime: %lu ms", HAL_GetTick());
+    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); // Toggle the onboard LED (PC13)
 
         // Mock/populate the lawn_mower_status with test data
-        // LOG_INFO("Running SPI test");
+        // LOG_INFO("Running UART test");
         // m_status->left_motor_speed = 100;
         // m_status->right_motor_speed = 120;
         // m_status->left_encoder_count = 500;
@@ -111,23 +88,15 @@ void run_spi_test(lawn_mower_status* m_status) {
         // serialize_lawn_mower_status(m_status, &flat_m_status);
         // LOG_INFO("Serialized lawn mower status. Size: %d bytes", sizeof(flat_lawn_mower_status));
 
-        uint8_t rx_buffer[SPI_PING_MESSAGE_SIZE];
-        LOG_INFO("Attempting SPI TransmitReceive (PING)...");
-        // Removed timeout for debugging purposes. Slave will now wait indefinitely.
-        HAL_StatusTypeDef spi_status = HAL_SPI_TransmitReceive(&hspi1, (uint8_t*)spi_ping_message, rx_buffer, SPI_PING_MESSAGE_SIZE, HAL_MAX_DELAY);
+    LOG_INFO("Attempting UART Transmit (PING) over USART2...");
+    HAL_StatusTypeDef uart_status = HAL_UART_Transmit(&huart2, (uint8_t*)uart_ping_message, UART_PING_MESSAGE_SIZE, HAL_MAX_DELAY);
 
-        if (spi_status == HAL_OK) {
-            LOG_INFO("Transmitted PING and received response.");
-            // In a real scenario, you might want to process rx_buffer here to get data from Raspi
-            // For now, we'll just log the first few bytes of the response
-            if (SPI_PING_MESSAGE_SIZE > 0) {
-                LOG_INFO("Received SPI response (first byte): 0x%02X", rx_buffer[0]);
-            }
-        } else if (spi_status == HAL_TIMEOUT) {
-            LOG_ERROR("SPI TransmitReceive (PING) timed out!");
-        } else {
-            LOG_ERROR("SPI TransmitReceive (PING) failed with error code: %d", spi_status);
-        }
-        HAL_Delay(10); // Small delay to allow the RPi to process if it did respond
-    // }
+    if (uart_status == HAL_OK) {
+        LOG_INFO("UART PING sent successfully over USART2.");
+    } else if (uart_status == HAL_TIMEOUT) {
+        LOG_ERROR("UART PING transmission timed out!");
+    } else {
+        LOG_ERROR("UART PING transmission failed with error code: %d", uart_status);
+    }
+    HAL_Delay(10); // Small delay to allow the RPi to process
 }

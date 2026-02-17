@@ -29,7 +29,7 @@
 #include "communication.h"
 #include "sensor.h"
 #include "positioning.h"
-#include "communication_test.h" // Include for SPI communication test function
+#include "communication_test.h"  // Include for UART communication test function
 #include <stdarg.h> // Required for variadic functions
 #include <stdio.h>  // Required for vsnprintf
 
@@ -53,17 +53,12 @@
 /* Private variables ---------------------------------------------------------*/
 I2C_HandleTypeDef hi2c1;
 
-SPI_HandleTypeDef hspi1;
-
-TIM_HandleTypeDef htim2;
 TIM_HandleTypeDef htim3;
 
 UART_HandleTypeDef huart1;
-
-// static RTC_HandleTypeDef hrtc; // Declare RTC Handle here - Removed as it's not used.
+UART_HandleTypeDef huart2;
 
 /* USER CODE BEGIN PV */
-// SPI_HandleTypeDef hspi1; // Already declared above
 lawn_mower_status m_status;
 flat_lawn_mower_status flat_m_status;
 
@@ -90,11 +85,10 @@ uint8_t rx_data = 0; // Definition of rx_data
 void SystemClock_Config(void);
 static void MX_GPIO_Init(void);
 static void MX_I2C1_Init(void);
-static void MX_TIM2_Init(void);
 static void MX_TIM3_Init(void);
 static void MX_I2C2_SMBUS_Init(void);
-static void MX_SPI1_Init(void);
 static void MX_USART1_UART_Init(void);
+static void MX_USART2_UART_Init(void);
 /* USER CODE BEGIN PFP */
 //static void BNO080_activate(void);
 //static void UpdateVelocityPosition(float dt);
@@ -233,46 +227,18 @@ int main(void)
 
   /* Configure the system clock */
   SystemClock_Config();
-  //LOG_WARNING("SystemClock_Config() is commented out and not being called.");
 
   /* USER CODE BEGIN SysInit */
 
   /* USER CODE END SysInit */
 
   /* Initialize all configured peripherals */
-
-  if (HAL_Init() != HAL_OK)
-  {
-    LOG_ERROR("HAL_Init() failed!");
-    Error_Handler();
-  } else {
-    LOG_INFO("HAL_Init() successful.");
-  }
-
-  // GPIO must be initialized before UART to configure its pins
   MX_GPIO_Init();
-  LOG_INFO("MX_GPIO_Init() successful.");
-
-  // UART must be initialized before any LOG_INFO/ERROR calls will work correctly over UART
-  MX_USART1_UART_Init();
-  LOG_INFO("MX_USART1_UART_Init() successful.");
-
-  // Other peripherals can be initialized after UART is ready for logging
   MX_I2C1_Init();
-  LOG_INFO("MX_I2C1_Init() successful.");
-
-  MX_TIM2_Init();
-  LOG_INFO("MX_TIM2_Init() successful.");
-
   MX_TIM3_Init();
-  LOG_INFO("MX_TIM3_Init() successful.");
-
   MX_I2C2_SMBUS_Init();
-  LOG_INFO("MX_I2C2_SMBUS_Init() successful.");
-
-  MX_SPI1_Init();
-  LOG_INFO("MX_SPI1_Init() successful.");
-
+  MX_USART1_UART_Init();
+  MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   LOG_INFO("Before BNO080_activate()."); // Debug Log
   BNO080_activate();
@@ -332,17 +298,8 @@ int main(void)
     /* USER CODE END WHILE */
 
     /* USER CODE BEGIN 3 */
-      // For testing purposes: Mock data and send over SPI
-	  // send_ping_message(); // <--- Add this line here
-	  run_spi_test(&m_status);
-      // The following lines are now handled within run_spi_test for testing. 
-      // In a real application, you would manage serialization and transmission here based on your logic.
-      /*
-      serialize_lawn_mower_status(&m_status, &flat_m_status);
-      uint8_t rx_buffer[sizeof(flat_lawn_mower_status)];
-      HAL_SPI_TransmitReceive(&hspi1, (uint8_t*)&flat_m_status, rx_buffer, sizeof(flat_m_status), HAL_MAX_DELAY);
-      */
-      //HAL_Delay(10); // Transmit every 10ms, adjust as needed for speed
+      // For testing purposes: send PING over UART (USART2) to Raspberry Pi
+	  run_uart_test(&m_status);
   }
   /* USER CODE END 3 */
 }
@@ -442,111 +399,6 @@ static void MX_I2C2_SMBUS_Init(void)
 }
 
 /**
-  * @brief SPI1 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_SPI1_Init(void)
-{
-
-  /* USER CODE BEGIN SPI1_Init 0 */
-
-  /* USER CODE END SPI1_Init 0 */
-
-  /* USER CODE BEGIN SPI1_Init 1 */
-
-  /* USER CODE END SPI1_Init 1 */
-  /* SPI1 parameter configuration*/
-  hspi1.Instance = SPI1;
-  hspi1.Init.Mode = SPI_MODE_SLAVE;
-  hspi1.Init.Direction = SPI_DIRECTION_2LINES;
-  hspi1.Init.DataSize = SPI_DATASIZE_8BIT;
-  hspi1.Init.CLKPolarity = SPI_POLARITY_LOW;
-  hspi1.Init.CLKPhase = SPI_PHASE_1EDGE;
-  hspi1.Init.NSS = SPI_NSS_HARD_INPUT;
-  hspi1.Init.BaudRatePrescaler = SPI_BAUDRATEPRESCALER_2;
-  hspi1.Init.FirstBit = SPI_FIRSTBIT_MSB;
-  hspi1.Init.TIMode = SPI_TIMODE_DISABLE;
-  hspi1.Init.CRCCalculation = SPI_CRCCALCULATION_DISABLE;
-  hspi1.Init.CRCPolynomial = 10;
-  if (HAL_SPI_Init(&hspi1) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN SPI1_Init 2 */
-
-  /* USER CODE END SPI1_Init 2 */
-
-}
-
-/**
-  * @brief TIM2 Initialization Function
-  * @param None
-  * @retval None
-  */
-static void MX_TIM2_Init(void)
-{
-
-  /* USER CODE BEGIN TIM2_Init 0 */
-
-  /* USER CODE END TIM2_Init 0 */
-
-  TIM_ClockConfigTypeDef sClockSourceConfig = {0};
-  TIM_MasterConfigTypeDef sMasterConfig = {0};
-  TIM_IC_InitTypeDef sConfigIC = {0};
-
-  /* USER CODE BEGIN TIM2_Init 1 */
-
-  /* USER CODE END TIM2_Init 1 */
-  htim2.Instance = TIM2;
-  htim2.Init.Prescaler = 0;
-  htim2.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim2.Init.Period = 65535;
-  htim2.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
-  htim2.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
-  if (HAL_TIM_Base_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sClockSourceConfig.ClockSource = TIM_CLOCKSOURCE_INTERNAL;
-  if (HAL_TIM_ConfigClockSource(&htim2, &sClockSourceConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_IC_Init(&htim2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sMasterConfig.MasterOutputTrigger = TIM_TRGO_RESET;
-  sMasterConfig.MasterSlaveMode = TIM_MASTERSLAVEMODE_DISABLE;
-  if (HAL_TIMEx_MasterConfigSynchronization(&htim2, &sMasterConfig) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_RISING;
-  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 0;
-  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_3) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_4) != HAL_OK)
-  {
-    Error_Handler();
-  }
-  /* USER CODE BEGIN TIM2_Init 2 */
-  HAL_NVIC_SetPriority(TIM2_IRQn, 0, 0);
-  HAL_NVIC_EnableIRQ(TIM2_IRQn);
-  /* USER CODE END TIM2_Init 2 */
-
-}
-
-/**
   * @brief TIM3 Initialization Function
   * @param None
   * @retval None
@@ -621,6 +473,39 @@ static void MX_USART1_UART_Init(void)
   /* USER CODE BEGIN USART1_Init 2 */
 
   /* USER CODE END USART1_Init 2 */
+
+}
+
+/**
+  * @brief USART2 Initialization Function
+  * @param None
+  * @retval None
+  */
+static void MX_USART2_UART_Init(void)
+{
+
+  /* USER CODE BEGIN USART2_Init 0 */
+
+  /* USER CODE END USART2_Init 0 */
+
+  /* USER CODE BEGIN USART2_Init 1 */
+
+  /* USER CODE END USART2_Init 1 */
+  huart2.Instance = USART2;
+  huart2.Init.BaudRate = 115200;
+  huart2.Init.WordLength = UART_WORDLENGTH_8B;
+  huart2.Init.StopBits = UART_STOPBITS_1;
+  huart2.Init.Parity = UART_PARITY_NONE;
+  huart2.Init.Mode = UART_MODE_TX_RX;
+  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
+  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
+  if (HAL_UART_Init(&huart2) != HAL_OK)
+  {
+    Error_Handler();
+  }
+  /* USER CODE BEGIN USART2_Init 2 */
+
+  /* USER CODE END USART2_Init 2 */
 
 }
 
@@ -778,5 +663,3 @@ void assert_failed(uint8_t *file, uint32_t line)
   /* USER CODE END 6 */
 }
 #endif /* USE_FULL_ASSERT */
-
-
