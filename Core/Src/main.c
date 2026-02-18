@@ -241,7 +241,7 @@ int main(void)
   MX_USART2_UART_Init();
   /* USER CODE BEGIN 2 */
   LOG_INFO("Before BNO080_activate()."); // Debug Log
-  BNO080_activate();
+  // BNO080_activate();  // Temporarily bypassed for UART testing
   LOG_INFO("After BNO080_activate()."); // Debug Log
   HAL_TIM_Base_Start_IT(&htim3);
   LOG_INFO("After HAL_TIM_Base_Start_IT(&htim3)."); // Debug Log
@@ -579,21 +579,14 @@ void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
 }
 
 // Handler for external events (encoders)
+// TIM2 was removed to free PA2/PA3 for USART2 (RPi communication)
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-//	printf("TIM2_IRQHandler\r\n");
-	if (htim->Instance == TIM2) {
-		if ((htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) ||
-				(htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2)) {
-			measure_encoders(htim);
-		} else {
-			read_bumpers(htim);
-		}
-	}
+	(void)htim;  /* TIM2 disabled - encoder/bumper callbacks no longer active */
 }
 
 void start_tim2(uint8_t channel) {
-	HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1 + channel * 4); // Start only that channel
+	(void)channel;  /* TIM2 removed for USART2 - stub to satisfy actuators.c */
 }
 
 //void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)

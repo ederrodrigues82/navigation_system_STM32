@@ -11,12 +11,8 @@ const uint8_t uart_ping_message[] = "PING";
 const uint16_t UART_PING_MESSAGE_SIZE = sizeof(uart_ping_message) - 1; // -1 to exclude null terminator
 
 void run_uart_test(lawn_mower_status* m_status) {
-    LOG_INFO("run_uart_test called. Current Tick: %lu", HAL_GetTick()); // Debug log
-
-    LOG_INFO("STM32 Ping! Uptime: %lu ms", HAL_GetTick());
-    HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13); // Toggle the onboard LED (PC13)
-
-        // Mock/populate the lawn_mower_status with test data
+    (void)m_status;  /* Unused for ping test */
+    // RPi initiates: STM32 waits for request, then responds
         // LOG_INFO("Running UART test");
         // m_status->left_motor_speed = 100;
         // m_status->right_motor_speed = 120;
@@ -88,15 +84,18 @@ void run_uart_test(lawn_mower_status* m_status) {
         // serialize_lawn_mower_status(m_status, &flat_m_status);
         // LOG_INFO("Serialized lawn mower status. Size: %d bytes", sizeof(flat_lawn_mower_status));
 
-    LOG_INFO("Attempting UART Transmit (PING) over USART2...");
-    HAL_StatusTypeDef uart_status = HAL_UART_Transmit(&huart2, (uint8_t*)uart_ping_message, UART_PING_MESSAGE_SIZE, HAL_MAX_DELAY);
+    // RPi initiates: STM32 waits for request, then responds
+    uint8_t rx_buffer[UART_PING_MESSAGE_SIZE];
+    HAL_StatusTypeDef rx_status = HAL_UART_Receive(&huart2, rx_buffer, UART_PING_MESSAGE_SIZE, HAL_MAX_DELAY);
 
-    if (uart_status == HAL_OK) {
-        LOG_INFO("UART PING sent successfully over USART2.");
-    } else if (uart_status == HAL_TIMEOUT) {
-        LOG_ERROR("UART PING transmission timed out!");
+    if (rx_status == HAL_OK) {
+        LOG_INFO("Received request from RPi, sending PING response.");
+        HAL_GPIO_TogglePin(GPIOC, GPIO_PIN_13);
+        HAL_StatusTypeDef tx_status = HAL_UART_Transmit(&huart2, (uint8_t*)uart_ping_message, UART_PING_MESSAGE_SIZE, HAL_MAX_DELAY);
+        if (tx_status != HAL_OK) {
+            LOG_ERROR("UART response transmission failed.");
+        }
     } else {
-        LOG_ERROR("UART PING transmission failed with error code: %d", uart_status);
+        LOG_ERROR("UART receive failed or timed out.");
     }
-    HAL_Delay(10); // Small delay to allow the RPi to process
 }

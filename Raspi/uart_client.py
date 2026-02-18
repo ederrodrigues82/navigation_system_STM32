@@ -1,6 +1,16 @@
 """UART client for communication with STM32 over USART2 (RS232 without flow control)."""
 
-import serial
+try:
+    import serial
+    if not hasattr(serial, "Serial"):
+        raise ImportError(
+            "Wrong 'serial' package installed. The 'serial' package is for data serialization, "
+            "not UART. Fix with: pip uninstall serial && pip install pyserial"
+        )
+except ImportError as e:
+    raise ImportError(
+        "pyserial not found or wrong package. Install with: pip install pyserial"
+    ) from e
 
 
 class UARTClient:
