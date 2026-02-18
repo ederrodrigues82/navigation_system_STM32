@@ -12,6 +12,7 @@ void serialize_lawn_mower_status(const lawn_mower_status *src, flat_lawn_mower_s
 
     for (int i = 0; i < NUM_ENCODERS; i++) {
         dest->wheel_direction[i] = src->wheel_direction[i];
+        dest->wheel_status[i] = src->wheel_status[i];
     }
     dest->left_encoder_count = src->left_encoder_count;
     dest->right_encoder_count = src->right_encoder_count;

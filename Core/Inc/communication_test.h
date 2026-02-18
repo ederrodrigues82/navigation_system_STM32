@@ -13,6 +13,7 @@ extern "C" {
 // UART command bytes (RPi sends 1 byte, STM32 responds accordingly)
 #define CMD_PING   0x01
 #define CMD_STATUS 0x02
+#define CMD_MOVE   0x03
 
 // Function declarations
 void run_uart_test(lawn_mower_status *m_status);

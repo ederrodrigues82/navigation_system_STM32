@@ -18,6 +18,7 @@ typedef struct __attribute__((__packed__)) {
     int32_t right_motor_speed;
     char direction[30];
     uint8_t wheel_direction[NUM_ENCODERS];
+    uint8_t wheel_status[NUM_ENCODERS];
     uint32_t left_encoder_count;
     uint32_t right_encoder_count;
     float speed_mps;

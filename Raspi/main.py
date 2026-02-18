@@ -10,6 +10,7 @@ if os.environ.get("DEBUG_UART") == "1":
     debugpy.wait_for_client()
     print("Debugger attached! Continuing execution.")
 import logging
+import struct
 import traceback  # Import traceback for detailed error logging
 
 from rich.console import Group
@@ -18,7 +19,7 @@ from rich.panel import Panel
 from rich.table import Table
 
 from uart_client import UARTClient
-from flat_lawn_mower_status import FlatLawnMowerStatus, STATUS_STRUCT_SIZE
+from flat_lawn_mower_status import FlatLawnMowerStatus, STATUS_STRUCT_SIZE, WHEEL_STATUS_NAMES, WHEEL_STATUS_READY
 
 # Configure logging (WARNING to avoid cluttering Rich display; use INFO for debug)
 logging.basicConfig(
@@ -34,6 +35,26 @@ UART_BAUDRATE = 115200
 # --- UART command bytes (must match STM32 communication_test.h) ---
 CMD_PING = 0x01
 CMD_STATUS = 0x02
+CMD_MOVE = 0x03
+
+# Wheel selection (must match STM32 actuators.h)
+WHEEL_RIGHT = 0
+WHEEL_LEFT = 1
+WHEEL_BOTH = 2
+
+# Direction (must match Movement_direction enum in actuators.h)
+DIR_FORWARD = 0
+DIR_BACKWARD = 1
+DIR_STOP = 2
+DIR_ROTATING_CLOCK = 3
+DIR_ROTATING_COUNTER = 4
+
+
+def request_move(uart_client: UARTClient, wheel: int, direction: int, distance: int) -> None:
+    """Send movement command to STM32. Fire-and-forget, no response expected."""
+    payload = bytes([CMD_MOVE, wheel, direction]) + struct.pack("<i", distance)
+    uart_client.send_data(payload)
+    uart_client.serial.flush()
 
 
 def request_ping(uart_client: UARTClient) -> bool:
@@ -66,9 +87,14 @@ def make_status_display(status: FlatLawnMowerStatus | None) -> Panel:
             t.add_row(k, v)
         return Panel(t, title=title, border_style="blue")
 
+    def wheel_status_str(ws: tuple) -> str:
+        names = [WHEEL_STATUS_NAMES[s] if s < len(WHEEL_STATUS_NAMES) else f"UNK({s})" for s in ws]
+        return f"L: {names[0]}, R: {names[1]}"
+
     motion = add_table("Motion", [
         ("Motors", f"L: {status.left_motor_speed}  R: {status.right_motor_speed}"),
         ("Direction", status.direction or "(none)"),
+        ("Wheel Status", wheel_status_str(status.wheel_status)),
         ("Encoders", f"L: {status.left_encoder_count}  R: {status.right_encoder_count}"),
         ("Speed", f"{status.speed_mps:.2f} m/s"),
         ("Heading", f"{status.heading_deg:.1f}°"),
@@ -129,10 +155,28 @@ def request_status(uart_client: UARTClient) -> FlatLawnMowerStatus | None:
 # --- Main application logic ---
 # The interactive menu logic is removed for this simplified ping test
 
+def run_move_test(uart_client: UARTClient) -> None:
+    """Test: move both wheels 30 pulses forward, wait for READY, then stop."""
+    print("Test: moving both wheels 30 pulses forward...")
+    request_move(uart_client, WHEEL_BOTH, DIR_FORWARD, 30)
+    timeout = 10.0
+    start = time.monotonic()
+    while time.monotonic() - start < timeout:
+        status = request_status(uart_client)
+        if status and all(s == WHEEL_STATUS_READY for s in status.wheel_status):
+            break
+        time.sleep(0.2)
+    print("Test: stopping both wheels...")
+    request_move(uart_client, WHEEL_BOTH, DIR_STOP, 0)
+    time.sleep(0.5)
+    print("Test done.")
+
+
 if __name__ == "__main__":
     uart_client = None
     try:
         uart_client = UARTClient(port=UART_PORT, baudrate=UART_BAUDRATE)
+        run_move_test(uart_client)
         refresh_interval = 0.5  # seconds between status requests
 
         with Live(make_status_display(None), refresh_per_second=4, console=None) as live:

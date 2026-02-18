@@ -51,6 +51,7 @@ typedef struct {
 	int32_t right_motor_speed;        // PWM duty cycle or RPM
     char direction[30];  // receive the direction_names[] const char from actuators.c
     uint8_t wheel_direction[NUM_ENCODERS];              // STOP, FORWARD, BACKWARD, etc.
+    uint8_t wheel_status[NUM_ENCODERS];                 // READY, ERROR, MOVING
     uint32_t left_encoder_count;
     uint32_t right_encoder_count;
     float speed_mps;             // meters per second

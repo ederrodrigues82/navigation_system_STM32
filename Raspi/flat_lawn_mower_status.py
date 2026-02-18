@@ -12,10 +12,14 @@ NUM_ENCODERS = 2
 # '2B': uint8_t wheel_direction[NUM_ENCODERS]
 # '3f': float pos[3]
 # '8?': bool bumpers[8] (Python's bool maps to 1 byte, usually)
+# 2B2B: wheel_direction(2) + wheel_status(2)
 # 8B4BBB: bumpers(8) + irda(4) + rain + blade_status + blade_speed (3 B's)
 # IBBBBBB: uptime(I) + error_code, is_manual_mode, is_emergency_stop, task_state, edge_sensor (5 B's) + 1 padding
-FLAT_MOWER_STATUS_FORMAT = "<ii30s2BIIff3f3f3f3f8B4BBBffBBIBBBBBB"
+FLAT_MOWER_STATUS_FORMAT = "<ii30s2B2BIIff3f3f3f3f8B4BBBffBBIBBBBBB"
 STATUS_STRUCT_SIZE = struct.calcsize(FLAT_MOWER_STATUS_FORMAT)
+
+WHEEL_STATUS_NAMES = ("READY", "ERROR", "MOVING")
+WHEEL_STATUS_READY = 0
 
 @dataclass
 class FlatLawnMowerStatus:
@@ -23,6 +27,7 @@ class FlatLawnMowerStatus:
     right_motor_speed: int
     direction: str # Changed to str for decoded string
     wheel_direction: tuple # For 2 uint8_t
+    wheel_status: tuple # For 2 uint8_t: READY=0, ERROR=1, MOVING=2
     left_encoder_count: int
     right_encoder_count: int
     speed_mps: float
@@ -66,6 +71,7 @@ class FlatLawnMowerStatus:
             right_motor_speed=next(dat_iter),
             direction=next(dat_iter).decode('utf-8').strip('\x00'), # Decode and strip null bytes
             wheel_direction=tuple(next(dat_iter) for _ in range(NUM_ENCODERS)), # 2 uint8_t
+            wheel_status=tuple(next(dat_iter) for _ in range(NUM_ENCODERS)), # 2 uint8_t
             left_encoder_count=next(dat_iter),
             right_encoder_count=next(dat_iter),
             speed_mps=next(dat_iter),
@@ -99,11 +105,16 @@ class FlatLawnMowerStatus:
             edge_sensor=next(dat_iter),
         )
 
+    def _wheel_status_str(self) -> str:
+        names = [WHEEL_STATUS_NAMES[s] if s < len(WHEEL_STATUS_NAMES) else f"UNK({s})" for s in self.wheel_status]
+        return f"L:{names[0]}, R:{names[1]}"
+
     def __str__(self):
         return f"""
 FlatLawnMowerStatus:
   Motors: L={self.left_motor_speed}, R={self.right_motor_speed}
   Direction: '{self.direction}', Wheel_Direction: {self.wheel_direction}
+  Wheel_Status: {self._wheel_status_str()}
   Encoders: L={self.left_encoder_count}, R={self.right_encoder_count}
   Speed: {self.speed_mps:.2f} m/s, Heading: {self.heading_deg:.2f}°
   Position: ({self.pos_x:.2f}, {self.pos_y:.2f}, {self.pos_z:.2f})

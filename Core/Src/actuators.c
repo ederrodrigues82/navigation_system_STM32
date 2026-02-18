@@ -19,6 +19,7 @@ const char *direction_names[] = {"STOP", "FORWARD", "BACKWARD", "ROTATING CLOCK"
 static int32_t encoder_position[NUM_ENCODERS] = {0};
 //static uint8_t last_b_state[NUM_ENCODERS] = {0};  // For direction detection
 static uint8_t wheel_direction[NUM_ENCODERS] = {STOP, STOP};
+static uint8_t wheel_status[NUM_ENCODERS] = {WHEEL_READY, WHEEL_READY};
 static int32_t right_motor_speed = 0; //TODO need implementation
 static int32_t left_motor_speed = 0; //TODO need implementation
 static float speed_mps = 0.0f; //TODO need implementation
@@ -34,7 +35,10 @@ void set_target_count(uint8_t channel, uint32_t target);
 int motion_control_init(lawn_mower_status* law_mower) {
 	law_mower->left_motor_speed = left_motor_speed;         // PWM duty cycle or RPM
 	law_mower->right_motor_speed = right_motor_speed;        // PWM duty cycle or RPM
-	// Removed: law_mower->wheel_direction[NUM_ENCODERS] = wheel_direction[0]; // This was an out-of-bounds access and should be handled by iterating or memcopy if needed.
+	for (int i = 0; i < NUM_ENCODERS; i++) {
+		law_mower->wheel_direction[i] = wheel_direction[i];
+		law_mower->wheel_status[i] = wheel_status[i];
+	}
 	law_mower->left_encoder_count = pulse_count[ENCODER_RIGHT];
 	law_mower->right_encoder_count = pulse_count[ENCODER_LEFT];
 	law_mower->speed_mps = speed_mps;             // meters per second
@@ -47,6 +51,12 @@ int motion_control_init(lawn_mower_status* law_mower) {
 
 void set_wheel(uint8_t wheel, uint8_t direction, int count) {
 	//TODO implement the hardware pin for motor actuation
+	if (direction == STOP || count == 0) {
+		wheel_status[wheel] = WHEEL_READY;
+	} else {
+		wheel_status[wheel] = WHEEL_MOVING;
+	}
+
 	if (wheel == WHEEL_RIGHT){
 		wheel_direction[ENCODER_RIGHT] = direction;
 		set_target_count(ENCODER_RIGHT, count); //Set number pulses for the movement
@@ -100,9 +110,12 @@ void measure_encoders(TIM_HandleTypeDef *htim)
             else
                 encoder_position[encoder]--;
 
+            pulse_count[encoder] = (uint32_t)abs(encoder_position[encoder]);
+
             if (abs(encoder_position[encoder]) >= target_count[encoder]) {
                 // Stop respective channel A capture
                 HAL_TIM_IC_Stop_IT(htim, (encoder == 0) ? TIM_CHANNEL_1 : TIM_CHANNEL_2);
+                wheel_status[encoder] = WHEEL_READY;
                 // Stop the respective wheel
                 switch (encoder) {
                     case 0:
@@ -130,6 +143,12 @@ int32_t get_encoder_position(uint8_t encoder) {
     if (encoder < NUM_ENCODERS)
         return encoder_position[encoder];
     return 0;
+}
+
+void get_wheel_status(uint8_t status[NUM_ENCODERS]) {
+    for (int i = 0; i < NUM_ENCODERS; i++) {
+        status[i] = wheel_status[i];
+    }
 }
 
 void print_wheel_status(uint8_t encoder) {
