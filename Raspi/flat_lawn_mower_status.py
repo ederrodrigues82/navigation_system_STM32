@@ -12,7 +12,10 @@ NUM_ENCODERS = 2
 # '2B': uint8_t wheel_direction[NUM_ENCODERS]
 # '3f': float pos[3]
 # '8?': bool bumpers[8] (Python's bool maps to 1 byte, usually)
-FLAT_MOWER_STATUS_FORMAT = "<ii30s2BIIff3f3f3f3f8B4BBBBffBBIBBBB"
+# 8B4BBB: bumpers(8) + irda(4) + rain + blade_status + blade_speed (3 B's)
+# IBBBBBB: uptime(I) + error_code, is_manual_mode, is_emergency_stop, task_state, edge_sensor (5 B's) + 1 padding
+FLAT_MOWER_STATUS_FORMAT = "<ii30s2BIIff3f3f3f3f8B4BBBffBBIBBBBBB"
+STATUS_STRUCT_SIZE = struct.calcsize(FLAT_MOWER_STATUS_FORMAT)
 
 @dataclass
 class FlatLawnMowerStatus:

@@ -1,1 +1,2 @@
 pyserial  # Required for UART communication with STM32 over USART2
+rich      # Terminal UI for m_status display
