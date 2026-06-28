@@ -31,6 +31,10 @@ logging.basicConfig(
 # --- Configuration (must match STM32 USART2 settings) ---
 UART_PORT = "/dev/ttyS0"  # Pi Zero W (use /dev/ttyAMA0 for Pi 3/4/5)
 UART_BAUDRATE = 115200
+UART_READ_TIMEOUT = 2.0
+# STM32 finishes USART2 handler before Pi sends next frame (avoids RX desync)
+UART_POST_CMD_DELAY_S = 0.05
+UART_POST_MOVE_DELAY_S = 0.25
 
 # --- UART command bytes (must match STM32 communication_test.h) ---
 CMD_PING = 0x01
@@ -51,13 +55,20 @@ DIR_ROTATING_CLOCK = 3
 DIR_ROTATING_COUNTER = 4
 
 
+def _uart_prepare(uart_client: UARTClient) -> None:
+    """Discard stale RX bytes before a new command/response pair."""
+    uart_client.flush_input()
+
+
 def set_emulate_wheel(uart_client: UARTClient, enable: bool) -> int:
     """Enable or disable wheel sensor emulation on STM32. Returns active mode (0/1) or -1 on failure."""
     try:
+        _uart_prepare(uart_client)
         uart_client.send_data(bytes([CMD_SET_EMULATE_WHEEL, 1 if enable else 0]))
         uart_client.serial.flush()
         ack = uart_client.receive_data(1)
-        if ack and len(ack) == 1:
+        time.sleep(UART_POST_CMD_DELAY_S)
+        if len(ack) == 1:
             logging.info(f"emulate_wheel set to {ack[0]}")
             return ack[0]
         logging.warning("No ACK from CMD_SET_EMULATE_WHEEL")
@@ -70,18 +81,22 @@ def set_emulate_wheel(uart_client: UARTClient, enable: bool) -> int:
 
 def request_move(uart_client: UARTClient, wheel: int, direction: int, distance: int) -> None:
     """Send movement command to STM32. Fire-and-forget, no response expected."""
+    _uart_prepare(uart_client)
     payload = bytes([CMD_MOVE, wheel, direction]) + struct.pack("<i", distance)
     uart_client.send_data(payload)
     uart_client.serial.flush()
+    time.sleep(UART_POST_MOVE_DELAY_S)
 
 
 def request_ping(uart_client: UARTClient) -> bool:
     """Send PING command, receive 4-byte response. Returns True if response received."""
     try:
+        _uart_prepare(uart_client)
         uart_client.send_data(bytes([CMD_PING]))
         uart_client.serial.flush()
         received = uart_client.receive_data(4)
-        if received and len(received) == 4:
+        time.sleep(UART_POST_CMD_DELAY_S)
+        if len(received) == 4:
             logging.info(f"PING response: {received}")
             return True
         logging.warning("No PING response from STM32")
@@ -156,10 +171,12 @@ def make_status_display(status: FlatLawnMowerStatus | None) -> Panel:
 def request_status(uart_client: UARTClient) -> FlatLawnMowerStatus | None:
     """Send STATUS command, receive flat_lawn_mower_status struct. Returns None on failure."""
     try:
+        _uart_prepare(uart_client)
         uart_client.send_data(bytes([CMD_STATUS]))
         uart_client.serial.flush()
         received = uart_client.receive_data(STATUS_STRUCT_SIZE)
-        if received and len(received) == STATUS_STRUCT_SIZE:
+        time.sleep(UART_POST_CMD_DELAY_S)
+        if len(received) == STATUS_STRUCT_SIZE:
             status = FlatLawnMowerStatus.from_bytes(received)
             return status
         logging.warning(f"Incomplete status: got {len(received) if received else 0} bytes, expected {STATUS_STRUCT_SIZE}")
@@ -193,7 +210,7 @@ def run_move_test(uart_client: UARTClient) -> None:
 if __name__ == "__main__":
     uart_client = None
     try:
-        uart_client = UARTClient(port=UART_PORT, baudrate=UART_BAUDRATE)
+        uart_client = UARTClient(port=UART_PORT, baudrate=UART_BAUDRATE, timeout=UART_READ_TIMEOUT)
         run_move_test(uart_client)
         refresh_interval = 0.5  # seconds between status requests
 

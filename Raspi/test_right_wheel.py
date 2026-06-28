@@ -17,6 +17,7 @@ from main import (
     request_move,
     request_ping,
     request_status,
+    set_emulate_wheel,
 )
 
 # Firmware maps right-wheel encoder count to left_encoder_count in status.
@@ -25,6 +26,7 @@ RIGHT_WHEEL_STATUS_IDX = 0
 
 UART_PORT = os.environ.get("UART_PORT", "/dev/ttyS0")
 UART_BAUDRATE = 115200
+UART_READ_TIMEOUT = 2.0
 PULSE_TOLERANCE = 2
 MOVE_TIMEOUT_S = 10.0
 STATUS_POLL_S = 0.2
@@ -211,6 +213,11 @@ def parse_args() -> argparse.Namespace:
         default=[30, 100],
         help="Pulse targets for Phase 4 (default: 30 100)",
     )
+    parser.add_argument(
+        "--emulate",
+        action="store_true",
+        help="Enable wheel sensor emulation before Phase 4 (no physical encoder needed)",
+    )
     return parser.parse_args()
 
 
@@ -221,8 +228,15 @@ def main() -> int:
     results: dict[str, bool] = {}
 
     try:
-        client = UARTClient(port=args.port, baudrate=args.baud)
+        client = UARTClient(port=args.port, baudrate=args.baud, timeout=UART_READ_TIMEOUT)
         print(f"Opened {args.port} @ {args.baud} baud")
+
+        if args.emulate:
+            ack = set_emulate_wheel(client, True)
+            if ack != 1:
+                print(f"FAIL: could not enable emulate_wheel (ACK={ack})")
+                return 1
+            print("Wheel sensor emulation enabled for this run")
 
         phases = {
             1: lambda: phase1_ping(client),
@@ -248,6 +262,8 @@ def main() -> int:
         if client:
             try:
                 request_move(client, WHEEL_RIGHT, DIR_STOP, 0)
+                if args.emulate:
+                    set_emulate_wheel(client, False)
             except Exception:
                 pass
             client.close()

@@ -16,7 +16,7 @@ except ImportError as e:
 class UARTClient:
     """Client for UART communication with STM32."""
 
-    def __init__(self, port: str = "/dev/ttyAMA0", baudrate: int = 115200, timeout: float = 1.0):
+    def __init__(self, port: str = "/dev/ttyAMA0", baudrate: int = 115200, timeout: float = 2.0):
         """
         Initialize UART client.
 
@@ -60,6 +60,10 @@ class UARTClient:
             Number of bytes written.
         """
         return self.serial.write(data)
+
+    def flush_input(self) -> None:
+        """Discard any unread bytes in the RX buffer."""
+        self.serial.reset_input_buffer()
 
     def close(self):
         """Close the serial connection."""

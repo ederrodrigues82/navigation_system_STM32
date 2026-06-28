@@ -22,6 +22,7 @@ static float speed_mps = 0.0f; //TODO need implementation
 static float heading_deg = 0; //TODO need implementation, link to BNO08X
 static char direction_str[30]; // Changed to array type
 static uint8_t emulate_wheel = 0;
+static uint8_t motor_active[NUM_ENCODERS] = {0};
 
 // Pulse encoders targets
 static volatile uint32_t pulse_count[NUM_ENCODERS] = {0};
@@ -29,6 +30,8 @@ static volatile uint32_t target_count[NUM_ENCODERS] = {0};
 
 void set_target_count(uint8_t channel, uint32_t target);
 static void check_encoder_target(uint8_t encoder);
+static int is_motor_on(uint8_t encoder);
+static void stop_motor_only(uint8_t encoder);
 
 void set_emulate_wheel(uint8_t enable)
 {
@@ -71,42 +74,62 @@ void set_wheel(uint8_t wheel, uint8_t direction, int count) {
 		if (direction == STOP || count == 0) {
 			HAL_GPIO_WritePin(RIGHT_MOTOR_IN1_GPIO_Port, RIGHT_MOTOR_IN1_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(RIGHT_MOTOR_IN2_GPIO_Port, RIGHT_MOTOR_IN2_Pin, GPIO_PIN_RESET);
+			motor_active[ENCODER_RIGHT] = 0;
 		} else if (direction == FORWARD || direction == ROTATING_CLOCK) {
 			HAL_GPIO_WritePin(RIGHT_MOTOR_IN1_GPIO_Port, RIGHT_MOTOR_IN1_Pin, GPIO_PIN_SET);
 			HAL_GPIO_WritePin(RIGHT_MOTOR_IN2_GPIO_Port, RIGHT_MOTOR_IN2_Pin, GPIO_PIN_RESET);
+			motor_active[ENCODER_RIGHT] = 1;
 		} else if (direction == BACKWARD || direction == ROTATING_COUNTER) {
 			HAL_GPIO_WritePin(RIGHT_MOTOR_IN1_GPIO_Port, RIGHT_MOTOR_IN1_Pin, GPIO_PIN_RESET);
 			HAL_GPIO_WritePin(RIGHT_MOTOR_IN2_GPIO_Port, RIGHT_MOTOR_IN2_Pin, GPIO_PIN_SET);
+			motor_active[ENCODER_RIGHT] = 1;
 		}
 	} else {
 		wheel_direction[ENCODER_LEFT] = direction;
 		set_target_count(ENCODER_LEFT, count);
 		/* Left wheel motor: not yet implemented */
+		motor_active[ENCODER_LEFT] = (direction != STOP && count != 0) ? 1 : 0;
 	}
 
-	LOG_INFO("Moving %s to direction: %s, pulses: %d", wheel_to_str[wheel], movement_directon_to_str[direction], count);
 	return;
+}
+
+static void stop_motor_only(uint8_t encoder)
+{
+	wheel_status[encoder] = WHEEL_READY;
+	if (encoder == ENCODER_RIGHT) {
+		HAL_GPIO_WritePin(RIGHT_MOTOR_IN1_GPIO_Port, RIGHT_MOTOR_IN1_Pin, GPIO_PIN_RESET);
+		HAL_GPIO_WritePin(RIGHT_MOTOR_IN2_GPIO_Port, RIGHT_MOTOR_IN2_Pin, GPIO_PIN_RESET);
+		motor_active[ENCODER_RIGHT] = 0;
+	} else if (encoder == ENCODER_LEFT) {
+		motor_active[ENCODER_LEFT] = 0;
+	}
 }
 
 static void check_encoder_target(uint8_t encoder)
 {
 	if (target_count[encoder] > 0 && abs(encoder_position[encoder]) >= (int32_t)target_count[encoder]) {
-		wheel_status[encoder] = WHEEL_READY;
-		switch (encoder) {
-			case ENCODER_RIGHT:
-				set_right_wheel(STOP, 0);
-				break;
-			case ENCODER_LEFT:
-				set_left_wheel(STOP, 0);
-				break;
-		}
+		stop_motor_only(encoder);
 	}
+}
+
+static int is_motor_on(uint8_t encoder)
+{
+	if (encoder == ENCODER_RIGHT) {
+		GPIO_PinState in1 = HAL_GPIO_ReadPin(RIGHT_MOTOR_IN1_GPIO_Port, RIGHT_MOTOR_IN1_Pin);
+		GPIO_PinState in2 = HAL_GPIO_ReadPin(RIGHT_MOTOR_IN2_GPIO_Port, RIGHT_MOTOR_IN2_Pin);
+		return (in1 != GPIO_PIN_RESET || in2 != GPIO_PIN_RESET) ? 1 : 0;
+	}
+	if (encoder < NUM_ENCODERS) {
+		return motor_active[encoder] ? 1 : 0;
+	}
+	return 0;
 }
 
 void emulate_wheel_tick(void)
 {
 	for (uint8_t i = 0; i < NUM_ENCODERS; i++) {
-		if (wheel_status[i] != WHEEL_MOVING) {
+		if (!is_motor_on(i)) {
 			continue;
 		}
 
