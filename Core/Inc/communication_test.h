@@ -14,6 +14,7 @@ extern "C" {
 #define CMD_PING   0x01
 #define CMD_STATUS 0x02
 #define CMD_MOVE   0x03
+#define CMD_SET_EMULATE_WHEEL 0x04
 
 // Function declarations
 void run_uart_test(lawn_mower_status *m_status);

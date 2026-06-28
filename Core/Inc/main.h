@@ -69,6 +69,7 @@ typedef enum {
 /* Exported macro ------------------------------------------------------------*/
 /* USER CODE BEGIN EM */
 #define NUM_ENCODERS 2
+#define EMULATE_WHEEL_TICK_MS 200
 /* USER CODE END EM */
 
 /* Exported functions prototypes ---------------------------------------------*/
@@ -104,6 +105,12 @@ void send_ping_message(void);
 #define BUMPER_LEFT_GPIO_Port GPIOB
 #define BUMPER_FRONT_RIGHT_Pin GPIO_PIN_9
 #define BUMPER_FRONT_RIGHT_GPIO_Port GPIOB
+
+/* Right wheel motor (H-bridge IN1, IN2) */
+#define RIGHT_MOTOR_IN1_Pin GPIO_PIN_10
+#define RIGHT_MOTOR_IN1_GPIO_Port GPIOB
+#define RIGHT_MOTOR_IN2_Pin GPIO_PIN_11
+#define RIGHT_MOTOR_IN2_GPIO_Port GPIOB
 
 /* USER CODE BEGIN Private defines */
 #define NUM_CHANNELS 4

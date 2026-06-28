@@ -24,7 +24,6 @@
 #include <stdio.h>
 #include "controller.h"
 #include "menu.h"
-#include "mov_simulator.h"
 #include "actuators.h"
 #include "communication.h"
 #include "sensor.h"
@@ -248,7 +247,10 @@ int main(void)
   LOG_INFO("After BNO080_activate()."); // Debug Log
   HAL_TIM_Base_Start_IT(&htim3);
   LOG_INFO("After HAL_TIM_Base_Start_IT(&htim3)."); // Debug Log
+  HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);  /* right encoder A0 (PA0) */
 //  HAL_UART_Receive_IT(&huart1, &rx_data, 1);
+  set_emulate_wheel(0);
+  LOG_INFO("Wheel sensors: %s", get_emulate_wheel() ? "EMULATED" : "REAL");
   LOG_INFO("Initialization was successful!");
   //menu(rx_data);
 
@@ -406,7 +408,7 @@ static void MX_I2C2_SMBUS_Init(void)
 }
 
 /**
-  * @brief TIM2 Initialization Function (encoder Input Capture: PA0=CH1, PA4=CH B)
+  * @brief TIM2 Initialization Function (right encoder: A0=PA0/CH1, A4=PA4/GPIO B)
   * @param None
   * @retval None
   */
@@ -440,15 +442,6 @@ static void MX_TIM2_Init(void)
   {
     Error_Handler();
   }
-
-  sConfigIC.ICPolarity = TIM_INPUTCHANNELPOLARITY_BOTHEDGE;
-  sConfigIC.ICSelection = TIM_ICSELECTION_DIRECTTI;
-  sConfigIC.ICPrescaler = TIM_ICPSC_DIV1;
-  sConfigIC.ICFilter = 0;
-  if (HAL_TIM_IC_ConfigChannel(&htim2, &sConfigIC, TIM_CHANNEL_2) != HAL_OK)
-  {
-    Error_Handler();
-  }
 }
 
 /**
@@ -472,7 +465,7 @@ static void MX_TIM3_Init(void)
   htim3.Instance = TIM3;
   htim3.Init.Prescaler = 15999;
   htim3.Init.CounterMode = TIM_COUNTERMODE_UP;
-  htim3.Init.Period = 999;
+  htim3.Init.Period = 199;  /* 200 ms tick at prescaler 15999 (~16 MHz timer clock) */
   htim3.Init.ClockDivision = TIM_CLOCKDIVISION_DIV1;
   htim3.Init.AutoReloadPreload = TIM_AUTORELOAD_PRELOAD_DISABLE;
   if (HAL_TIM_Base_Init(&htim3) != HAL_OK)
@@ -586,6 +579,10 @@ static void MX_GPIO_Init(void)
   /*Configure GPIO pin Output Level */
   HAL_GPIO_WritePin(BUMPER_FRONT_LEFT_GPIO_Port, BUMPER_FRONT_LEFT_Pin, GPIO_PIN_RESET);
 
+  /*Configure GPIO pin Output Level - Right motor (IN1=LOW, IN2=LOW = stop) */
+  HAL_GPIO_WritePin(RIGHT_MOTOR_IN1_GPIO_Port, RIGHT_MOTOR_IN1_Pin, GPIO_PIN_RESET);
+  HAL_GPIO_WritePin(RIGHT_MOTOR_IN2_GPIO_Port, RIGHT_MOTOR_IN2_Pin, GPIO_PIN_RESET);
+
   /*Configure GPIO pin : BUMPER_REAR_LEFT_Pin */
   GPIO_InitStruct.Pin = BUMPER_REAR_LEFT_Pin;
   GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
@@ -615,7 +612,12 @@ static void MX_GPIO_Init(void)
   HAL_GPIO_Init(BUMPER_REAR_RIGHT_GPIO_Port, &GPIO_InitStruct);
 
   /* USER CODE BEGIN MX_GPIO_Init_2 */
-
+  /* Right motor H-bridge: PB10=IN1, PB11=IN2 */
+  GPIO_InitStruct.Pin = RIGHT_MOTOR_IN1_Pin | RIGHT_MOTOR_IN2_Pin;
+  GPIO_InitStruct.Mode = GPIO_MODE_OUTPUT_PP;
+  GPIO_InitStruct.Pull = GPIO_NOPULL;
+  GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_LOW;
+  HAL_GPIO_Init(GPIOB, &GPIO_InitStruct);
   /* USER CODE END MX_GPIO_Init_2 */
 }
 
@@ -634,27 +636,21 @@ void HAL_I2C_MasterRxCpltCallback(I2C_HandleTypeDef *hi2c)
 // Handler for external events (encoders)
 void HAL_TIM_IC_CaptureCallback(TIM_HandleTypeDef *htim)
 {
-	if (htim->Instance == TIM2) {
+	if (htim->Instance == TIM2 && !get_emulate_wheel()) {
 		measure_encoders(htim);
 	}
 }
 
 void start_tim2(uint8_t channel) {
-	if (channel == ENCODER_RIGHT) {
-		HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_1);
-	} else if (channel == ENCODER_LEFT) {
-		HAL_TIM_IC_Start_IT(&htim2, TIM_CHANNEL_2);
-	}
+	(void)channel;  /* Encoders always running - no-op */
 }
 
-//void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
-//{
-//    if (htim->Instance == TIM3)
-//    {
-//        tick();  // call simulator tick function
-//        //LOG_INFO("Timer_3 Tick!");
-//    }
-//}
+void HAL_TIM_PeriodElapsedCallback(TIM_HandleTypeDef *htim)
+{
+	if (htim->Instance == TIM3 && get_emulate_wheel()) {
+		emulate_wheel_tick();
+	}
+}
 
 //void HAL_UART_RxCpltCallback(UART_HandleTypeDef *huart)
 //{

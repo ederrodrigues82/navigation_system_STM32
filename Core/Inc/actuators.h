@@ -44,5 +44,8 @@ void get_wheel_status(uint8_t status[NUM_ENCODERS]);
 void measure_encoders(TIM_HandleTypeDef *htim);
 void set_left_wheel(uint8_t direction, int count);
 void set_right_wheel(uint8_t direction, int count);
+void set_emulate_wheel(uint8_t enable);
+uint8_t get_emulate_wheel(void);
+void emulate_wheel_tick(void);
 
 #endif /* ACTUATORS_H */

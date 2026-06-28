@@ -29,7 +29,7 @@ void run_uart_test(lawn_mower_status* m_status) {
             LOG_ERROR("UART PING transmission failed.");
         }
     } else if (cmd == CMD_STATUS) {
-        get_wheel_status(m_status->wheel_status);
+        motion_control_init(m_status);
         flat_lawn_mower_status flat_m_status;
         serialize_lawn_mower_status(m_status, &flat_m_status);
         size_t payload_size = sizeof(flat_lawn_mower_status);
@@ -59,6 +59,21 @@ void run_uart_test(lawn_mower_status* m_status) {
             }
         } else {
             LOG_ERROR("CMD_MOVE receive failed.");
+        }
+    } else if (cmd == CMD_SET_EMULATE_WHEEL) {
+        uint8_t enable;
+        HAL_StatusTypeDef emu_rx = HAL_UART_Receive(&huart2, &enable, 1, HAL_MAX_DELAY);
+        if (emu_rx == HAL_OK) {
+            set_emulate_wheel(enable ? 1 : 0);
+            uint8_t ack = get_emulate_wheel();
+            HAL_StatusTypeDef tx_status = HAL_UART_Transmit(&huart2, &ack, 1, HAL_MAX_DELAY);
+            if (tx_status == HAL_OK) {
+                LOG_INFO("emulate_wheel set to %u via UART", ack);
+            } else {
+                LOG_ERROR("CMD_SET_EMULATE_WHEEL ACK transmission failed.");
+            }
+        } else {
+            LOG_ERROR("CMD_SET_EMULATE_WHEEL receive failed.");
         }
     } else {
         LOG_WARNING("Unknown command: 0x%02X", cmd);

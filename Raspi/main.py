@@ -36,6 +36,7 @@ UART_BAUDRATE = 115200
 CMD_PING = 0x01
 CMD_STATUS = 0x02
 CMD_MOVE = 0x03
+CMD_SET_EMULATE_WHEEL = 0x04
 
 # Wheel selection (must match STM32 actuators.h)
 WHEEL_RIGHT = 0
@@ -48,6 +49,23 @@ DIR_BACKWARD = 1
 DIR_STOP = 2
 DIR_ROTATING_CLOCK = 3
 DIR_ROTATING_COUNTER = 4
+
+
+def set_emulate_wheel(uart_client: UARTClient, enable: bool) -> int:
+    """Enable or disable wheel sensor emulation on STM32. Returns active mode (0/1) or -1 on failure."""
+    try:
+        uart_client.send_data(bytes([CMD_SET_EMULATE_WHEEL, 1 if enable else 0]))
+        uart_client.serial.flush()
+        ack = uart_client.receive_data(1)
+        if ack and len(ack) == 1:
+            logging.info(f"emulate_wheel set to {ack[0]}")
+            return ack[0]
+        logging.warning("No ACK from CMD_SET_EMULATE_WHEEL")
+        return -1
+    except Exception as e:
+        logging.error(f"set_emulate_wheel failed: {e}")
+        logging.critical(traceback.format_exc())
+        return -1
 
 
 def request_move(uart_client: UARTClient, wheel: int, direction: int, distance: int) -> None:

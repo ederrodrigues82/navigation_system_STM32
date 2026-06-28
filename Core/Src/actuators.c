@@ -7,17 +7,13 @@
 #include <stdlib.h>
 #include <actuators.h>
 #include <controller.h>
-#include <mov_simulator.h>
 #include <stm32f1xx_hal.h>
 
 const char* wheel_to_str[] = { "right wheel", "left wheel" };
 const char* movement_directon_to_str[] = { "FORWARD", "BACKWARD", "STOP", "ROTATING_CLOCK", "ROTATING_COUNTER" };
 const char *direction_names[] = {"STOP", "FORWARD", "BACKWARD", "ROTATING CLOCK", "ROTATING COUNTER"};
 
-#define SIM_MOVEMENT 1 //Movement simulation
-
 static int32_t encoder_position[NUM_ENCODERS] = {0};
-//static uint8_t last_b_state[NUM_ENCODERS] = {0};  // For direction detection
 static uint8_t wheel_direction[NUM_ENCODERS] = {STOP, STOP};
 static uint8_t wheel_status[NUM_ENCODERS] = {WHEEL_READY, WHEEL_READY};
 static int32_t right_motor_speed = 0; //TODO need implementation
@@ -25,12 +21,24 @@ static int32_t left_motor_speed = 0; //TODO need implementation
 static float speed_mps = 0.0f; //TODO need implementation
 static float heading_deg = 0; //TODO need implementation, link to BNO08X
 static char direction_str[30]; // Changed to array type
+static uint8_t emulate_wheel = 0;
 
 // Pulse encoders targets
 static volatile uint32_t pulse_count[NUM_ENCODERS] = {0};
 static volatile uint32_t target_count[NUM_ENCODERS] = {0};
 
 void set_target_count(uint8_t channel, uint32_t target);
+static void check_encoder_target(uint8_t encoder);
+
+void set_emulate_wheel(uint8_t enable)
+{
+	emulate_wheel = enable ? 1 : 0;
+}
+
+uint8_t get_emulate_wheel(void)
+{
+	return emulate_wheel;
+}
 
 int motion_control_init(lawn_mower_status* law_mower) {
 	law_mower->left_motor_speed = left_motor_speed;         // PWM duty cycle or RPM
@@ -50,7 +58,6 @@ int motion_control_init(lawn_mower_status* law_mower) {
 
 
 void set_wheel(uint8_t wheel, uint8_t direction, int count) {
-	//TODO implement the hardware pin for motor actuation
 	if (direction == STOP || count == 0) {
 		wheel_status[wheel] = WHEEL_READY;
 	} else {
@@ -59,27 +66,68 @@ void set_wheel(uint8_t wheel, uint8_t direction, int count) {
 
 	if (wheel == WHEEL_RIGHT){
 		wheel_direction[ENCODER_RIGHT] = direction;
-		set_target_count(ENCODER_RIGHT, count); //Set number pulses for the movement
+		set_target_count(ENCODER_RIGHT, count);
+		/* Right wheel motor: PB10=IN1, PB11=IN2 */
+		if (direction == STOP || count == 0) {
+			HAL_GPIO_WritePin(RIGHT_MOTOR_IN1_GPIO_Port, RIGHT_MOTOR_IN1_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RIGHT_MOTOR_IN2_GPIO_Port, RIGHT_MOTOR_IN2_Pin, GPIO_PIN_RESET);
+		} else if (direction == FORWARD || direction == ROTATING_CLOCK) {
+			HAL_GPIO_WritePin(RIGHT_MOTOR_IN1_GPIO_Port, RIGHT_MOTOR_IN1_Pin, GPIO_PIN_SET);
+			HAL_GPIO_WritePin(RIGHT_MOTOR_IN2_GPIO_Port, RIGHT_MOTOR_IN2_Pin, GPIO_PIN_RESET);
+		} else if (direction == BACKWARD || direction == ROTATING_COUNTER) {
+			HAL_GPIO_WritePin(RIGHT_MOTOR_IN1_GPIO_Port, RIGHT_MOTOR_IN1_Pin, GPIO_PIN_RESET);
+			HAL_GPIO_WritePin(RIGHT_MOTOR_IN2_GPIO_Port, RIGHT_MOTOR_IN2_Pin, GPIO_PIN_SET);
+		}
 	} else {
 		wheel_direction[ENCODER_LEFT] = direction;
-		set_target_count(ENCODER_LEFT, count); //Set number pulses for the movement
+		set_target_count(ENCODER_LEFT, count);
+		/* Left wheel motor: not yet implemented */
 	}
 
-	if (SIM_MOVEMENT) {
-		set_simulate_movement(direction, count);
-	}
 	LOG_INFO("Moving %s to direction: %s, pulses: %d", wheel_to_str[wheel], movement_directon_to_str[direction], count);
-
-    if (direction == FORWARD || direction == ROTATING_CLOCK) {
-    	//set on right wheel motor
-    	//set the direction of motor to clock
-    }
-
-    if (direction == BACKWARD || direction == ROTATING_COUNTER) {
-		//set on right wheel motor
-		//set the direction of motor to counter clock
-    }
 	return;
+}
+
+static void check_encoder_target(uint8_t encoder)
+{
+	if (target_count[encoder] > 0 && abs(encoder_position[encoder]) >= (int32_t)target_count[encoder]) {
+		wheel_status[encoder] = WHEEL_READY;
+		switch (encoder) {
+			case ENCODER_RIGHT:
+				set_right_wheel(STOP, 0);
+				break;
+			case ENCODER_LEFT:
+				set_left_wheel(STOP, 0);
+				break;
+		}
+	}
+}
+
+void emulate_wheel_tick(void)
+{
+	for (uint8_t i = 0; i < NUM_ENCODERS; i++) {
+		if (wheel_status[i] != WHEEL_MOVING) {
+			continue;
+		}
+
+		int32_t delta = 0;
+		switch (wheel_direction[i]) {
+			case FORWARD:
+			case ROTATING_CLOCK:
+				delta = 1;
+				break;
+			case BACKWARD:
+			case ROTATING_COUNTER:
+				delta = -1;
+				break;
+			default:
+				continue;
+		}
+
+		encoder_position[i] += delta;
+		pulse_count[i] = (uint32_t)abs(encoder_position[i]);
+		check_encoder_target(i);
+	}
 }
 
 void measure_encoders(TIM_HandleTypeDef *htim)
@@ -91,41 +139,25 @@ void measure_encoders(TIM_HandleTypeDef *htim)
 
         if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_1) {
             encoder = ENCODER_RIGHT;
-            b_port = GPIOA; // TIM2_CH2 → GPIOA (por exemplo)
-            b_pin  = GPIO_PIN_4; // Encoder right pin B
+            b_port = GPIOA;
+            b_pin  = GPIO_PIN_4; /* A4 (PA4) encoder channel B */
         }
         else if (htim->Channel == HAL_TIM_ACTIVE_CHANNEL_2) {
             encoder = ENCODER_LEFT;
-            b_port = GPIOA; // TIM2_CH4 → GPIOA (por exemplo)
+            b_port = GPIOA;
             b_pin  = GPIO_PIN_5; // Encoder left pin B
         }
 
         if (encoder < NUM_ENCODERS) {
-            // capture signal B
             uint8_t b_state = HAL_GPIO_ReadPin(b_port, b_pin);
 
-            // determine direction based on signal B
             if (b_state == 0)
                 encoder_position[encoder]++;
             else
                 encoder_position[encoder]--;
 
             pulse_count[encoder] = (uint32_t)abs(encoder_position[encoder]);
-
-            if (abs(encoder_position[encoder]) >= target_count[encoder]) {
-                // Stop respective channel A capture
-                HAL_TIM_IC_Stop_IT(htim, (encoder == 0) ? TIM_CHANNEL_1 : TIM_CHANNEL_2);
-                wheel_status[encoder] = WHEEL_READY;
-                // Stop the respective wheel
-                switch (encoder) {
-                    case 0:
-                        set_right_wheel(STOP, 0);
-                        break;
-                    case 1:
-                        set_left_wheel(STOP, 0);
-                        break;
-                }
-            }
+            check_encoder_target(encoder);
         }
     }
 }
@@ -135,7 +167,7 @@ void set_target_count(uint8_t channel, uint32_t target) {
     if (channel < NUM_CHANNELS) {
         target_count[channel] = target;
         pulse_count[channel] = 0;
-        start_tim2(channel);
+        encoder_position[channel] = 0;
     }
 }
 

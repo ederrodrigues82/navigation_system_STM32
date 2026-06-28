@@ -152,7 +152,7 @@ void HAL_I2C_MspDeInit(I2C_HandleTypeDef* hi2c)
 }
 
 /**
-  * @brief TIM_IC MSP Initialization (encoder: PA0=TIM2_CH1, PA4=encoder B)
+  * @brief TIM_IC MSP Initialization (right encoder: A0=PA0/TIM2_CH1, A4=PA4/GPIO B)
   */
 void HAL_TIM_IC_MspInit(TIM_HandleTypeDef* htim)
 {
@@ -162,18 +162,18 @@ void HAL_TIM_IC_MspInit(TIM_HandleTypeDef* htim)
     __HAL_RCC_TIM2_CLK_ENABLE();
     __HAL_RCC_GPIOA_CLK_ENABLE();
 
-    /**TIM2 GPIO Configuration
-    PA0     ------> TIM2_CH1 (encoder right channel A)
-    PA4     ------> GPIO input (encoder right channel B)
-    */
+    /** Right encoder quadrature:
+     *  A0 (PA0) -> TIM2_CH1 input capture (channel A edges)
+     *  A4 (PA4) -> GPIO input (channel B, direction)
+     */
     GPIO_InitStruct.Pin = GPIO_PIN_0;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     GPIO_InitStruct.Pin = GPIO_PIN_4;
     GPIO_InitStruct.Mode = GPIO_MODE_INPUT;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
+    GPIO_InitStruct.Pull = GPIO_PULLUP;
     HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
 
     HAL_NVIC_SetPriority(TIM2_IRQn, 1, 0);
